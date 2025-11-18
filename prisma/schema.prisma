@@ -153,7 +153,7 @@ model Measurement {
   fianchi          Float?
   braccioSx        Float?
   braccioDx        Float?
-  gamba Sx         Float?
+  gambaSx          Float?
   gambaDx          Float?
   percentualeGrasso Float?
   note             String?
