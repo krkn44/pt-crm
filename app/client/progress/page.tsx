@@ -229,7 +229,9 @@ export default async function ProgressPage() {
                       Tutte le tue misurazioni corporee
                     </CardDescription>
                   </div>
-                  <Button>Nuova Misurazione</Button>
+                  <Link href="/client/progress/new">
+                    <Button>Nuova Misurazione</Button>
+                  </Link>
                 </div>
               </CardHeader>
               <CardContent>

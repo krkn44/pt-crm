@@ -285,10 +285,12 @@ export default async function ClientDetailPage({
                   <p className="text-muted-foreground text-center max-w-md mb-4">
                     Questo cliente non ha ancora una scheda di allenamento attiva.
                   </p>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crea Nuova Scheda
-                  </Button>
+                  <Link href={`/trainer/clients/${params.id}/workout/new`}>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crea Nuova Scheda
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             )}
