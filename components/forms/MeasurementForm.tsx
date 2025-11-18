@@ -11,13 +11,15 @@ import { Save } from "lucide-react";
 
 interface MeasurementFormProps {
   clientId: string;
+  redirectUrl?: string; // URL di redirect personalizzato dopo salvataggio
 }
 
-export function MeasurementForm({ clientId }: MeasurementFormProps) {
+export function MeasurementForm({ clientId, redirectUrl }: MeasurementFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
+    data: new Date().toISOString().split("T")[0], // Data odierna come default
     peso: "",
     altezza: "",
     petto: "",
@@ -48,7 +50,7 @@ export function MeasurementForm({ clientId }: MeasurementFormProps) {
       });
 
       if (response.ok) {
-        router.push("/client/progress");
+        router.push(redirectUrl || "/client/progress");
         router.refresh();
       } else {
         alert("Errore nel salvare la misurazione");
@@ -82,6 +84,23 @@ export function MeasurementForm({ clientId }: MeasurementFormProps) {
             </TabsList>
 
             <TabsContent value="base" className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="data">Data Misurazione *</Label>
+                  <Input
+                    id="data"
+                    type="date"
+                    value={formData.data}
+                    onChange={(e) => updateField("data", e.target.value)}
+                    required
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Specifica quando è stata effettuata la misurazione
+                  </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="peso">Peso (kg)</Label>

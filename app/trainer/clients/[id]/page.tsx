@@ -332,6 +332,15 @@ export default async function ClientDetailPage({
 
           {/* Progress Tab */}
           <TabsContent value="progress" className="space-y-4">
+            <div className="flex justify-end mb-4">
+              <Link href={`/trainer/clients/${params.id}/measurement/new`}>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuova Misurazione
+                </Button>
+              </Link>
+            </div>
+
             {client.measurements.length > 0 ? (
               <Tabs defaultValue="weight" className="space-y-4">
                 <TabsList>

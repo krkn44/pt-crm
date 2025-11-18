@@ -54,6 +54,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       clientId,
+      data,
       peso,
       altezza,
       petto,
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
     const measurement = await prisma.measurement.create({
       data: {
         clientId,
+        data: data ? new Date(data) : new Date(), // Usa la data specificata o quella odierna
         peso: peso ? parseFloat(peso) : null,
         altezza: altezza ? parseFloat(altezza) : null,
         petto: petto ? parseFloat(petto) : null,
