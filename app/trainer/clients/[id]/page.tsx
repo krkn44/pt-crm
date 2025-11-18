@@ -103,6 +103,35 @@ export default async function ClientDetailPage({
       peso: m.peso,
     }));
 
+  const bodyMeasurementsData = client.measurements
+    .filter((m) => m.petto || m.vita || m.fianchi)
+    .reverse()
+    .map((m) => ({
+      date: format(m.data, "dd/MM", { locale: it }),
+      petto: m.petto || 0,
+      vita: m.vita || 0,
+      fianchi: m.fianchi || 0,
+    }));
+
+  const bodyFatData = client.measurements
+    .filter((m) => m.percentualeGrasso)
+    .reverse()
+    .map((m) => ({
+      date: format(m.data, "dd/MM", { locale: it }),
+      grasso: m.percentualeGrasso,
+    }));
+
+  const armsLegsData = client.measurements
+    .filter((m) => m.braccioSx || m.braccioDx || m.gambaSx || m.gambaDx)
+    .reverse()
+    .map((m) => ({
+      date: format(m.data, "dd/MM", { locale: it }),
+      braccioSx: m.braccioSx || 0,
+      braccioDx: m.braccioDx || 0,
+      gambaSx: m.gambaSx || 0,
+      gambaDx: m.gambaDx || 0,
+    }));
+
   return (
     <div className="flex flex-col">
       <Header userName={userName} title="Dettaglio Cliente" />
@@ -224,10 +253,12 @@ export default async function ClientDetailPage({
                           </CardDescription>
                         )}
                       </div>
-                      <Button variant="outline">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Modifica
-                      </Button>
+                      <Link href={`/trainer/clients/${params.id}/workout/${activeWorkout.id}/edit`}>
+                        <Button variant="outline">
+                          <Edit className="mr-2 h-4 w-4" />
+                          Modifica
+                        </Button>
+                      </Link>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -298,63 +329,204 @@ export default async function ClientDetailPage({
 
           {/* Progress Tab */}
           <TabsContent value="progress" className="space-y-4">
-            {weightData.length > 0 ? (
-              <MultiLineChart
-                title="Progressione Peso"
-                description="Andamento del peso corporeo"
-                data={weightData}
-                lines={[
-                  {
-                    dataKey: "peso",
-                    name: "Peso (kg)",
-                    color: "hsl(var(--primary))",
-                  },
-                ]}
-                yAxisLabel="kg"
-              />
+            {client.measurements.length > 0 ? (
+              <Tabs defaultValue="weight" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="weight">Peso</TabsTrigger>
+                  <TabsTrigger value="body">Circonferenze</TabsTrigger>
+                  <TabsTrigger value="bodyfat">% Grasso</TabsTrigger>
+                  <TabsTrigger value="arms">Braccia/Gambe</TabsTrigger>
+                  <TabsTrigger value="table">Storico</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="weight">
+                  {weightData.length > 0 ? (
+                    <MultiLineChart
+                      title="Progressione Peso"
+                      description="Andamento del peso corporeo"
+                      data={weightData}
+                      lines={[
+                        {
+                          dataKey: "peso",
+                          name: "Peso (kg)",
+                          color: "hsl(var(--primary))",
+                        },
+                      ]}
+                      yAxisLabel="kg"
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        Nessun dato peso disponibile
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="body">
+                  {bodyMeasurementsData.length > 0 ? (
+                    <MultiLineChart
+                      title="Circonferenze Corporee"
+                      description="Andamento petto, vita e fianchi"
+                      data={bodyMeasurementsData}
+                      lines={[
+                        { dataKey: "petto", name: "Petto (cm)", color: "#3b82f6" },
+                        { dataKey: "vita", name: "Vita (cm)", color: "#10b981" },
+                        { dataKey: "fianchi", name: "Fianchi (cm)", color: "#f59e0b" },
+                      ]}
+                      yAxisLabel="cm"
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        Nessun dato circonferenze disponibile
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="bodyfat">
+                  {bodyFatData.length > 0 ? (
+                    <MultiLineChart
+                      title="Percentuale Grasso Corporeo"
+                      description="Andamento % grasso corporeo"
+                      data={bodyFatData}
+                      lines={[
+                        {
+                          dataKey: "grasso",
+                          name: "% Grasso",
+                          color: "hsl(var(--primary))",
+                        },
+                      ]}
+                      yAxisLabel="%"
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        Nessun dato % grasso disponibile
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="arms">
+                  {armsLegsData.length > 0 ? (
+                    <MultiLineChart
+                      title="Braccia e Gambe"
+                      description="Andamento circonferenze braccia e gambe"
+                      data={armsLegsData}
+                      lines={[
+                        { dataKey: "braccioSx", name: "Braccio Sx (cm)", color: "#3b82f6" },
+                        { dataKey: "braccioDx", name: "Braccio Dx (cm)", color: "#06b6d4" },
+                        { dataKey: "gambaSx", name: "Gamba Sx (cm)", color: "#10b981" },
+                        { dataKey: "gambaDx", name: "Gamba Dx (cm)", color: "#84cc16" },
+                      ]}
+                      yAxisLabel="cm"
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        Nessun dato braccia/gambe disponibile
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="table">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Storico Misurazioni</CardTitle>
+                      <CardDescription>
+                        Tutte le misurazioni del cliente
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {client.measurements.map((measurement) => (
+                          <div
+                            key={measurement.id}
+                            className="p-4 border rounded-lg"
+                          >
+                            <p className="font-medium mb-2">
+                              {format(measurement.data, "dd MMMM yyyy", {
+                                locale: it,
+                              })}
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                              {measurement.peso && (
+                                <div>
+                                  <span className="text-muted-foreground">Peso:</span>{" "}
+                                  <span className="font-medium">{measurement.peso} kg</span>
+                                </div>
+                              )}
+                              {measurement.percentualeGrasso && (
+                                <div>
+                                  <span className="text-muted-foreground">% Grasso:</span>{" "}
+                                  <span className="font-medium">{measurement.percentualeGrasso}%</span>
+                                </div>
+                              )}
+                              {measurement.petto && (
+                                <div>
+                                  <span className="text-muted-foreground">Petto:</span>{" "}
+                                  <span className="font-medium">{measurement.petto} cm</span>
+                                </div>
+                              )}
+                              {measurement.vita && (
+                                <div>
+                                  <span className="text-muted-foreground">Vita:</span>{" "}
+                                  <span className="font-medium">{measurement.vita} cm</span>
+                                </div>
+                              )}
+                              {measurement.fianchi && (
+                                <div>
+                                  <span className="text-muted-foreground">Fianchi:</span>{" "}
+                                  <span className="font-medium">{measurement.fianchi} cm</span>
+                                </div>
+                              )}
+                              {measurement.braccioSx && (
+                                <div>
+                                  <span className="text-muted-foreground">Braccio Sx:</span>{" "}
+                                  <span className="font-medium">{measurement.braccioSx} cm</span>
+                                </div>
+                              )}
+                              {measurement.braccioDx && (
+                                <div>
+                                  <span className="text-muted-foreground">Braccio Dx:</span>{" "}
+                                  <span className="font-medium">{measurement.braccioDx} cm</span>
+                                </div>
+                              )}
+                              {measurement.gambaSx && (
+                                <div>
+                                  <span className="text-muted-foreground">Gamba Sx:</span>{" "}
+                                  <span className="font-medium">{measurement.gambaSx} cm</span>
+                                </div>
+                              )}
+                              {measurement.gambaDx && (
+                                <div>
+                                  <span className="text-muted-foreground">Gamba Dx:</span>{" "}
+                                  <span className="font-medium">{measurement.gambaDx} cm</span>
+                                </div>
+                              )}
+                            </div>
+                            {measurement.note && (
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                {measurement.note}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             ) : (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Nessun dato disponibile sui progressi
+                  Nessuna misurazione disponibile per questo cliente
                 </CardContent>
               </Card>
             )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Ultime Misurazioni</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {client.measurements.length > 0 ? (
-                  <div className="space-y-3">
-                    {client.measurements.slice(0, 5).map((measurement) => (
-                      <div
-                        key={measurement.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {format(measurement.data, "dd MMMM yyyy", {
-                              locale: it,
-                            })}
-                          </p>
-                          <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                            {measurement.peso && <span>Peso: {measurement.peso} kg</span>}
-                            {measurement.percentualeGrasso && (
-                              <span>% Grasso: {measurement.percentualeGrasso}%</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">
-                    Nessuna misurazione registrata
-                  </p>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Feedback Tab */}
