@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Plus, Search } from "lucide-react";
 import { differenceInDays } from "date-fns";
+import Link from "next/link";
 
 export default async function ClientsPage() {
   const session = await getServerSession(authOptions);
@@ -97,10 +98,12 @@ export default async function ClientsPage() {
               {clients.length} client{clients.length !== 1 ? "i" : "e"} totali
             </p>
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuovo Cliente
-          </Button>
+          <Link href="/trainer/clients/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuovo Cliente
+            </Button>
+          </Link>
         </div>
 
         {/* Search Bar */}
@@ -197,10 +200,12 @@ export default async function ClientsPage() {
                     Non hai ancora clienti registrati. Inizia aggiungendo il tuo
                     primo cliente.
                   </p>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Aggiungi Cliente
-                  </Button>
+                  <Link href="/trainer/clients/new">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Aggiungi Cliente
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             )}
