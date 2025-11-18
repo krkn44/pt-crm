@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ClientCard } from "@/components/client/ClientCard";
-import { Input } from "@/components/ui/input";
+import { ClientSearch } from "@/components/client/ClientSearch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +11,11 @@ import { Users, Plus, Search } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import Link from "next/link";
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: { search?: string };
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -19,6 +23,7 @@ export default async function ClientsPage() {
   }
 
   const userName = `${session.user.nome} ${session.user.cognome}`;
+  const searchQuery = searchParams.search?.toLowerCase() || "";
 
   // Recupera tutti i clienti con le loro informazioni
   const clients = await prisma.user.findMany({
@@ -79,10 +84,19 @@ export default async function ClientsPage() {
     };
   });
 
+  // Filtra clienti per ricerca
+  const filteredClients = searchQuery
+    ? clientsWithStatus.filter((c) => {
+        const fullName = `${c.nome} ${c.cognome}`.toLowerCase();
+        const email = c.email.toLowerCase();
+        return fullName.includes(searchQuery) || email.includes(searchQuery);
+      })
+    : clientsWithStatus;
+
   // Filtra clienti per stato
-  const activeClients = clientsWithStatus.filter((c) => c.status === "active");
-  const warningClients = clientsWithStatus.filter((c) => c.status === "warning");
-  const inactiveClients = clientsWithStatus.filter(
+  const activeClients = filteredClients.filter((c) => c.status === "active");
+  const warningClients = filteredClients.filter((c) => c.status === "warning");
+  const inactiveClients = filteredClients.filter(
     (c) => c.status === "inactive"
   );
 
@@ -95,7 +109,9 @@ export default async function ClientsPage() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">I Tuoi Clienti</h2>
             <p className="text-muted-foreground">
-              {clients.length} client{clients.length !== 1 ? "i" : "e"} totali
+              {searchQuery
+                ? `${filteredClients.length} di ${clients.length} client${clients.length !== 1 ? "i" : "e"}`
+                : `${clients.length} client${clients.length !== 1 ? "i" : "e"} totali`}
             </p>
           </div>
           <Link href="/trainer/clients/new">
@@ -107,13 +123,7 @@ export default async function ClientsPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cerca cliente per nome o email..."
-            className="pl-9"
-          />
-        </div>
+        <ClientSearch />
 
         {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -166,7 +176,7 @@ export default async function ClientsPage() {
         <Tabs defaultValue="all" className="space-y-4">
           <TabsList>
             <TabsTrigger value="all">
-              Tutti ({clients.length})
+              Tutti ({filteredClients.length})
             </TabsTrigger>
             <TabsTrigger value="active">
               Attivi ({activeClients.length})
@@ -180,8 +190,8 @@ export default async function ClientsPage() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            {clientsWithStatus.length > 0 ? (
-              clientsWithStatus.map((client) => (
+            {filteredClients.length > 0 ? (
+              filteredClients.map((client) => (
                 <ClientCard
                   key={client.id}
                   client={client}

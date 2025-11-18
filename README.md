@@ -70,7 +70,11 @@ Sistema completo di gestione per personal trainer e clienti, costruito con Next.
   - Attivi
   - Richiedono Attenzione
   - Inattivi
-- Search bar per ricerca (UI ready)
+- **Ricerca clienti in tempo reale** (nome o email) ✨
+- **Creazione nuovi clienti** (`/trainer/clients/new`) ✨
+  - Form completo con nome, cognome, email, password, telefono, obiettivi
+  - Validazione e gestione errori
+  - Auto-redirect al cliente creato
 - Card clienti con:
   - Avatar con indicatore stato
   - Ultimo allenamento
@@ -85,6 +89,7 @@ Sistema completo di gestione per personal trainer e clienti, costruito con Next.
   - Data iscrizione
   - Quick stats (allenamenti, misurazioni, schede, feedback positivi)
   - Obiettivi cliente in evidenza
+  - **Pulsante modifica dati cliente** (`/trainer/clients/[id]/edit`) ✨
 
 - **Tabs organizzati:**
 
@@ -92,22 +97,27 @@ Sistema completo di gestione per personal trainer e clienti, costruito con Next.
   - Visualizzazione scheda attiva
   - Lista completa esercizi con ExerciseCard
   - Statistiche scheda (data creazione, scadenza, sessioni)
-  - Pulsante modifica scheda
+  - **Pulsante modifica scheda** (`/trainer/clients/[id]/workout/[workoutId]/edit`) ✨
 
-  **Progressi:**
-  - Grafici peso e misurazioni
-  - Storico ultime 5 misurazioni
-  - Trend con valori
+  **Progressi:** ✨
+  - **5 Sub-tabs organizzati:**
+    - **Peso**: grafico andamento peso corporeo
+    - **Circonferenze**: petto, vita, fianchi (multi-linea)
+    - **% Grasso**: percentuale grasso corporeo
+    - **Braccia/Gambe**: 4 circonferenze arti (multi-linea)
+    - **Storico**: tabella completa tutte le misurazioni
+  - Grafici interattivi con Recharts
+  - Visualizzazione condizionale (mostra solo dati disponibili)
 
   **Feedback:**
   - Tutti i feedback sessioni con rating
   - Commenti completi cliente
   - Data e ora allenamento
 
-  **Note:**
+  **Note:** ✨
   - Note private trainer (solo visibili al PT)
   - Textarea per annotazioni
-  - Salvataggio note (da implementare)
+  - **Salvataggio note con auto-refresh**
 
 #### 4. Notifiche (`/trainer/notifications`)
 - Lista notifiche con filtro letto/non letto
@@ -123,13 +133,39 @@ Sistema completo di gestione per personal trainer e clienti, costruito con Next.
 - Contatore non lette
 - Pulsante "Segna tutte come lette"
 
-#### 5. Gestione Schede (`/trainer/workouts`)
-- Pagina placeholder per editor schede
-- Da implementare: template riutilizzabili
+#### 5. Gestione Schede ✨
+- **Creazione schede** (`/trainer/clients/[id]/workout/new`)
+  - Form completo: nome, descrizione, data scadenza
+  - **Editor esercizi con libreria 40+ esercizi** organizzati per categoria:
+    - Petto (4), Dorso (4), Gambe (6), Spalle (4), Braccia (5), Core (5), Cardio (3)
+  - Aggiunta esercizi custom
+  - Riordino esercizi drag-and-drop visuale
+  - Dettagli: serie, ripetizioni, peso, recupero, note, video URL
+  - Auto-attivazione nuova scheda
+- **Modifica schede esistenti** (`/trainer/clients/[id]/workout/[workoutId]/edit`)
+  - Caricamento dati scheda esistente
+  - Modifica completa esercizi e informazioni
+  - Salvataggio con aggiornamento database
 
-#### 6. Analytics (`/trainer/analytics`)
-- Pagina placeholder per analytics avanzate
-- Da implementare: report mensili, grafici aggregati
+#### 6. Analytics ✨
+- **4 Tab organizzate:**
+  - **Sessioni Recenti**: ultime 30 sessioni con dettagli completi
+    - Cliente, workout, data, durata, feedback, rating
+  - **Tutti i Feedback**: tutte le sessioni con feedback/rating
+    - Badge colorati per rating (verde ≥4, giallo 3, rosso ≤2)
+  - **Per Cliente**: statistiche aggregate per ogni cliente
+    - Numero sessioni totali
+    - Rating medio calcolato
+    - Data ultima sessione
+    - Ordinati per numero sessioni
+  - **Feedback Negativi**: highlight sessioni con rating ≤2
+    - Evidenziate in rosso per attenzione immediata
+- **Cards statistiche totali:**
+  - Sessioni totali
+  - Sessioni ultimi 7 giorni
+  - Sessioni ultimi 30 giorni
+  - Rating medio globale
+- Filtri temporali e visualizzazione dati in tempo reale
 
 ---
 
