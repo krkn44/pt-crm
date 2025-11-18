@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ExerciseCard } from "@/components/workout/ExerciseCard";
 import { MultiLineChart } from "@/components/dashboard/MultiLineChart";
+import { ClientNotes } from "@/components/client/ClientNotes";
 import {
   Mail,
   Phone,
@@ -173,10 +174,12 @@ export default async function ClientDetailPage({
                       </div>
                     </div>
                   </div>
-                  <Button>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Modifica
-                  </Button>
+                  <Link href={`/trainer/clients/${params.id}/edit`}>
+                    <Button>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Modifica
+                    </Button>
+                  </Link>
                 </div>
 
                 {client.clientProfile?.obiettivi && (
@@ -587,14 +590,10 @@ export default async function ClientDetailPage({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <textarea
-                    className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    placeholder="Scrivi note sul cliente..."
-                    defaultValue={client.clientProfile?.note || ""}
-                  />
-                  <Button>Salva Note</Button>
-                </div>
+                <ClientNotes
+                  clientId={params.id}
+                  initialNotes={client.clientProfile?.note || ""}
+                />
               </CardContent>
             </Card>
           </TabsContent>
