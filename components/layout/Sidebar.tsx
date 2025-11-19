@@ -6,6 +6,8 @@ import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState } from "react";
 import {
   Dumbbell,
   LayoutDashboard,
@@ -16,6 +18,7 @@ import {
   Bell,
   BarChart3,
   LogOut,
+  Menu,
 } from "lucide-react";
 
 interface NavItem {
@@ -80,12 +83,12 @@ const trainerNavItems: NavItem[] = [
   },
 ];
 
-export function Sidebar({ role, userName }: SidebarProps) {
+function SidebarContent({ role, userName, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
   const navItems = role === "CLIENT" ? clientNavItems : trainerNavItems;
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-card">
+    <>
       <div className="flex h-16 items-center border-b px-6">
         <div className="flex items-center gap-2">
           <Dumbbell className="h-6 w-6 text-primary" />
@@ -106,6 +109,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                     isActive
@@ -123,7 +127,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
       </div>
 
       <div className="border-t p-4">
-        <div className="mb-2 px-3 text-sm font-medium">
+        <div className="mb-2 px-3 text-sm font-medium truncate">
           {userName}
         </div>
         <Separator className="my-2" />
@@ -136,6 +140,40 @@ export function Sidebar({ role, userName }: SidebarProps) {
           Esci
         </Button>
       </div>
-    </div>
+    </>
+  );
+}
+
+export function Sidebar({ role, userName }: SidebarProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      {/* Mobile Menu Button */}
+      <div className="fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:hidden">
+        <div className="flex items-center gap-2">
+          <Dumbbell className="h-6 w-6 text-primary" />
+          <span className="text-xl font-bold">PT CRM</span>
+        </div>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <div className="flex h-full flex-col">
+              <SidebarContent role={role} userName={userName} onNavigate={() => setOpen(false)} />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex h-full w-64 flex-col border-r bg-card">
+        <SidebarContent role={role} userName={userName} />
+      </div>
+    </>
   );
 }
