@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -85,7 +85,14 @@ const trainerNavItems: NavItem[] = [
 
 function SidebarContent({ role, userName, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const navItems = role === "CLIENT" ? clientNavItems : trainerNavItems;
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/auth/signin");
+    router.refresh();
+  };
 
   return (
     <>
@@ -134,7 +141,7 @@ function SidebarContent({ role, userName, onNavigate }: SidebarProps & { onNavig
         <Button
           variant="ghost"
           className="w-full justify-start text-muted-foreground"
-          onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+          onClick={handleSignOut}
         >
           <LogOut className="mr-3 h-4 w-4" />
           Esci

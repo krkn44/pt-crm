@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,21 +22,25 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      const result = await signIn.email({
         email,
         password,
-        redirect: false,
       });
 
-      if (result?.error) {
+      if (result.error) {
         setError("Credenziali non valide");
         setLoading(false);
         return;
       }
 
       // Redirect to the original page or dashboard
-      const from = searchParams.get("from") || "/";
-      router.push(from);
+      const from = searchParams.get("from");
+      if (from) {
+        router.push(from);
+      } else {
+        // Redirect based on role (will be handled by middleware)
+        router.push("/");
+      }
       router.refresh();
     } catch (error) {
       setError("Si è verificato un errore. Riprova.");
@@ -45,7 +49,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Accedi</CardTitle>
@@ -87,6 +91,15 @@ export default function SignInPage() {
               {loading ? "Caricamento..." : "Accedi"}
             </Button>
           </form>
+
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            <a
+              href="/auth/forgot-password"
+              className="hover:text-primary transition-colors"
+            >
+              Password dimenticata?
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>
