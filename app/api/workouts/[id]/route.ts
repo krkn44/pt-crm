@@ -1,28 +1,27 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (session.user.role !== "TRAINER") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const workoutId = params.id;
+    const { id: workoutId } = await params;
     const body = await request.json();
-    const { nome, descrizione, dataScadenza, isActive, exercises } = body;
+    const { name, description, expiryDate, isActive, exercises } = body;
 
-    // Se isActive è true, disattiva tutte le altre schede dello stesso cliente
+    // If isActive is true, deactivate all other workouts for the same client
     if (isActive) {
       const workout = await prisma.workout.findUnique({
         where: { id: workoutId },
@@ -42,38 +41,38 @@ export async function PUT(
       }
     }
 
-    // Se sono forniti esercizi, elimina i vecchi e crea i nuovi
+    // If exercises are provided, delete old ones and create new ones
     if (exercises) {
-      // Elimina esercizi esistenti
+      // Delete existing exercises
       await prisma.exercise.deleteMany({
         where: { workoutId },
       });
 
-      // Aggiorna workout e crea nuovi esercizi
+      // Update workout and create new exercises
       const updatedWorkout = await prisma.workout.update({
         where: { id: workoutId },
         data: {
-          nome,
-          descrizione,
-          dataScadenza: dataScadenza ? new Date(dataScadenza) : null,
+          name,
+          description,
+          expiryDate: expiryDate ? new Date(expiryDate) : null,
           isActive,
           exercises: {
             create: exercises.map((ex: any, index: number) => ({
-              nome: ex.nome,
-              serie: ex.serie,
-              ripetizioni: ex.ripetizioni,
-              peso: ex.peso,
-              recupero: ex.recupero,
-              note: ex.note,
+              name: ex.name,
+              sets: ex.sets,
+              reps: ex.reps,
+              weight: ex.weight,
+              rest: ex.rest,
+              notes: ex.notes,
               videoUrl: ex.videoUrl,
-              ordine: index + 1,
+              order: index + 1,
             })),
           },
         },
         include: {
           exercises: {
             orderBy: {
-              ordine: "asc",
+              order: "asc",
             },
           },
         },
@@ -81,19 +80,19 @@ export async function PUT(
 
       return NextResponse.json(updatedWorkout);
     } else {
-      // Aggiorna solo i dati della scheda
+      // Update only workout data
       const updatedWorkout = await prisma.workout.update({
         where: { id: workoutId },
         data: {
-          nome,
-          descrizione,
-          dataScadenza: dataScadenza ? new Date(dataScadenza) : null,
+          name,
+          description,
+          expiryDate: expiryDate ? new Date(expiryDate) : null,
           isActive,
         },
         include: {
           exercises: {
             orderBy: {
-              ordine: "asc",
+              order: "asc",
             },
           },
         },
@@ -102,9 +101,9 @@ export async function PUT(
       return NextResponse.json(updatedWorkout);
     }
   } catch (error) {
-    console.error("Errore nell'aggiornare la scheda:", error);
+    console.error("Error updating workout:", error);
     return NextResponse.json(
-      { error: "Errore nell'aggiornare la scheda" },
+      { error: "Error updating workout" },
       { status: 500 }
     );
   }
@@ -112,30 +111,30 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (session.user.role !== "TRAINER") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const workoutId = params.id;
+    const { id: workoutId } = await params;
 
     await prisma.workout.delete({
       where: { id: workoutId },
     });
 
-    return NextResponse.json({ message: "Scheda eliminata con successo" });
+    return NextResponse.json({ message: "Workout deleted successfully" });
   } catch (error) {
-    console.error("Errore nell'eliminare la scheda:", error);
+    console.error("Error deleting workout:", error);
     return NextResponse.json(
-      { error: "Errore nell'eliminare la scheda" },
+      { error: "Error deleting workout" },
       { status: 500 }
     );
   }

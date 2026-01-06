@@ -9,14 +9,14 @@ import { it } from "date-fns/locale";
 interface ClientCardProps {
   client: {
     id: string;
-    nome: string;
-    cognome: string;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
-    telefono?: string;
+    phone?: string | null;
     clientProfile?: {
       id: string;
-      obiettivi?: string;
-      scadenzaScheda?: Date;
+      goals?: string | null;
+      cardExpiryDate?: Date | null;
     } | null;
     _count?: {
       workoutSessions: number;
@@ -30,25 +30,25 @@ interface ClientCardProps {
 const statusConfig = {
   active: {
     badge: "bg-green-500",
-    label: "Attivo",
+    label: "Active",
   },
   warning: {
     badge: "bg-yellow-500",
-    label: "Attenzione",
+    label: "Warning",
   },
   inactive: {
     badge: "bg-red-500",
-    label: "Inattivo",
+    label: "Inactive",
   },
 };
 
 export function ClientCard({ client, lastSession, status = "active" }: ClientCardProps) {
-  const initials = `${client.nome[0]}${client.cognome[0]}`.toUpperCase();
+  const initials = `${client.firstName?.[0] || ""}${client.lastName?.[0] || ""}`.toUpperCase() || "?";
   const config = statusConfig[status];
 
-  const daysToExpiry = client.clientProfile?.scadenzaScheda
+  const daysToExpiry = client.clientProfile?.cardExpiryDate
     ? Math.ceil(
-        (new Date(client.clientProfile.scadenzaScheda).getTime() - Date.now()) /
+        (new Date(client.clientProfile.cardExpiryDate).getTime() - Date.now()) /
           (1000 * 60 * 60 * 24)
       )
     : null;
@@ -71,7 +71,7 @@ export function ClientCard({ client, lastSession, status = "active" }: ClientCar
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg">
-                    {client.nome} {client.cognome}
+                    {client.firstName} {client.lastName}
                   </h3>
                   <p className="text-sm text-muted-foreground truncate">
                     {client.email}
@@ -82,9 +82,9 @@ export function ClientCard({ client, lastSession, status = "active" }: ClientCar
                 </Badge>
               </div>
 
-              {client.clientProfile?.obiettivi && (
+              {client.clientProfile?.goals && (
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-1">
-                  {client.clientProfile.obiettivi}
+                  {client.clientProfile.goals}
                 </p>
               )}
 
@@ -104,7 +104,7 @@ export function ClientCard({ client, lastSession, status = "active" }: ClientCar
                 {client._count && client._count.workoutSessions > 0 && (
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <TrendingUp className="h-4 w-4" />
-                    <span>{client._count.workoutSessions} sessioni</span>
+                    <span>{client._count.workoutSessions} sessions</span>
                   </div>
                 )}
 
@@ -118,7 +118,7 @@ export function ClientCard({ client, lastSession, status = "active" }: ClientCar
                           : "text-muted-foreground"
                       }
                     >
-                      Scheda: {daysToExpiry > 0 ? `${daysToExpiry} giorni` : "Scaduta"}
+                      Card: {daysToExpiry > 0 ? `${daysToExpiry} days` : "Expired"}
                     </span>
                   </div>
                 )}

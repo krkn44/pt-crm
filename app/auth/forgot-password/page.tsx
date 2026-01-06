@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
       });
 
       if (result.error) {
-        setError("Impossibile inviare l'email. Verifica l'indirizzo.");
+        setError("Unable to send email. Please check the address.");
         setLoading(false);
         return;
       }
@@ -38,26 +38,26 @@ export default function ForgotPasswordPage() {
       setSuccess(true);
       setLoading(false);
     } catch (error) {
-      setError("Si è verificato un errore. Riprova.");
+      setError("An error occurred. Please try again.");
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Password dimenticata?</CardTitle>
+          <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
           <CardDescription>
-            Inserisci la tua email per ricevere le istruzioni di reset
+            Enter your email to receive reset instructions
           </CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
-            <Alert className="bg-green-50 border-green-200">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                Email inviata! Controlla la tua casella di posta per le istruzioni di reset.
+            <Alert className="bg-green-900/20 border-green-800">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <AlertDescription className="text-green-400">
+                Email sent! Check your inbox for reset instructions.
               </AlertDescription>
             </Alert>
           ) : (
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="mario.rossi@example.com"
+                  placeholder="john.doe@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Invio in corso..." : "Invia email di reset"}
+                {loading ? "Sending..." : "Send Reset Email"}
               </Button>
             </form>
           )}
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
               href="/auth/signin"
               className="text-primary hover:underline"
             >
-              Torna al login
+              Back to login
             </a>
           </div>
         </CardContent>

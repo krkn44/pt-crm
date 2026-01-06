@@ -1,23 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "@/lib/auth-client";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import {
   Dumbbell,
   LayoutDashboard,
-  Calendar,
+  BookOpen,
   TrendingUp,
   Users,
   ClipboardList,
   Bell,
   BarChart3,
-  LogOut,
   Menu,
 } from "lucide-react";
 
@@ -29,29 +26,23 @@ interface NavItem {
 
 interface SidebarProps {
   role: "CLIENT" | "TRAINER";
-  userName: string;
 }
 
 const clientNavItems: NavItem[] = [
   {
-    title: "Dashboard",
-    href: "/client/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Allenamento",
+    title: "Workout",
     href: "/client/workout",
     icon: Dumbbell,
   },
   {
-    title: "Progressi",
+    title: "Progress",
     href: "/client/progress",
     icon: TrendingUp,
   },
   {
-    title: "Appuntamenti",
-    href: "/client/appointments",
-    icon: Calendar,
+    title: "Diary",
+    href: "/client/diary",
+    icon: BookOpen,
   },
 ];
 
@@ -62,12 +53,12 @@ const trainerNavItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Clienti",
+    title: "Clients",
     href: "/trainer/clients",
     icon: Users,
   },
   {
-    title: "Schede",
+    title: "Workouts",
     href: "/trainer/workouts",
     icon: ClipboardList,
   },
@@ -77,22 +68,15 @@ const trainerNavItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    title: "Notifiche",
+    title: "Notifications",
     href: "/trainer/notifications",
     icon: Bell,
   },
 ];
 
-function SidebarContent({ role, userName, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
+function SidebarContent({ role, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
   const navItems = role === "CLIENT" ? clientNavItems : trainerNavItems;
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/auth/signin");
-    router.refresh();
-  };
 
   return (
     <>
@@ -106,7 +90,7 @@ function SidebarContent({ role, userName, onNavigate }: SidebarProps & { onNavig
       <div className="flex-1 overflow-auto py-4">
         <div className="px-3 py-2">
           <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground">
-            {role === "CLIENT" ? "AREA CLIENTE" : "AREA TRAINER"}
+            {role === "CLIENT" ? "CLIENT AREA" : "TRAINER AREA"}
           </div>
           <div className="space-y-1">
             {navItems.map((item) => {
@@ -132,26 +116,11 @@ function SidebarContent({ role, userName, onNavigate }: SidebarProps & { onNavig
           </div>
         </div>
       </div>
-
-      <div className="border-t p-4">
-        <div className="mb-2 px-3 text-sm font-medium truncate">
-          {userName}
-        </div>
-        <Separator className="my-2" />
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-muted-foreground"
-          onClick={handleSignOut}
-        >
-          <LogOut className="mr-3 h-4 w-4" />
-          Esci
-        </Button>
-      </div>
     </>
   );
 }
 
-export function Sidebar({ role, userName }: SidebarProps) {
+export function Sidebar({ role }: SidebarProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -170,8 +139,9 @@ export function Sidebar({ role, userName }: SidebarProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <div className="flex h-full flex-col">
-              <SidebarContent role={role} userName={userName} onNavigate={() => setOpen(false)} />
+              <SidebarContent role={role} onNavigate={() => setOpen(false)} />
             </div>
           </SheetContent>
         </Sheet>
@@ -179,7 +149,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex h-full w-64 flex-col border-r bg-card">
-        <SidebarContent role={role} userName={userName} />
+        <SidebarContent role={role} />
       </div>
     </>
   );

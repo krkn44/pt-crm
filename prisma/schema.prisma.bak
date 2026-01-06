@@ -1,0 +1,288 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Enum per i ruoli utente
+enum UserRole {
+  CLIENT
+  TRAINER
+}
+
+// Enum per lo stato degli appuntamenti
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// Enum per il tipo di notifiche
+enum NotificationType {
+  WORKOUT_COMPLETED
+  WORKOUT_REMINDER
+  APPOINTMENT_SCHEDULED
+  APPOINTMENT_REMINDER
+  MEASUREMENT_ADDED
+  CHECKPOINT_DUE
+  FEEDBACK_RECEIVED
+  INACTIVITY_WARNING
+}
+
+// Model User - Utente base (può essere Cliente o Trainer)
+model User {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  email          String          @unique
+  password       String? // Optional - Better-Auth manages password in Account table
+  role           UserRole        @default(CLIENT)
+  nome           String?
+  cognome        String?
+  name           String? // Better-Auth compatibility (derived from nome+cognome)
+  emailVerified  Boolean         @default(false) // Better-Auth email verification
+  image          String? // Better-Auth profile image (optional)
+  telefono       String?
+  dataIscrizione DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  clientProfile     ClientProfile?
+  workoutSessions   WorkoutSession[]
+  measurements      Measurement[]
+  checkpoints       Checkpoint[]
+  appointmentsAsClient AppointmentClient[]
+  appointmentsAsTrainer AppointmentTrainer[]
+  notifications     Notification[]
+  sessions          Session[] // Better-Auth sessions
+  accounts          Account[] // Better-Auth accounts
+
+  @@map("users")
+}
+
+// Better-Auth Session Model
+model Session {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Better-Auth Account Model (for OAuth providers if needed)
+model Account {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @db.ObjectId
+  accountId         String
+  providerId        String
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  expiresAt         DateTime?
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+// Better-Auth Verification Model (email verification tokens)
+model Verification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verifications")
+}
+
+// Model ClientProfile - Profilo specifico del cliente
+model ClientProfile {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @unique @db.ObjectId
+  obiettivi      String?
+  note           String?
+  dataInizio     DateTime @default(now())
+  scadenzaScheda DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workouts Workout[]
+
+  @@map("client_profiles")
+}
+
+// Model Workout - Scheda di allenamento
+model Workout {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  clientId      String    @db.ObjectId
+  nome          String
+  descrizione   String?
+  dataCreazione DateTime  @default(now())
+  dataScadenza  DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  client          ClientProfile    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  exercises       Exercise[]
+  workoutSessions WorkoutSession[]
+
+  @@map("workouts")
+}
+
+// Model Exercise - Esercizio in una scheda
+model Exercise {
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  workoutId  String  @db.ObjectId
+  nome       String
+  serie      Int
+  ripetizioni String // Può essere "12" o "10-12" o "AMRAP"
+  peso       String? // Può essere "20kg" o "Corpo libero"
+  recupero   String? // Es. "60s" o "1min"
+  note       String?
+  ordine     Int     // Per mantenere l'ordine degli esercizi
+  videoUrl   String? // Link YouTube tutorial
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@map("exercises")
+}
+
+// Model WorkoutSession - Sessione di allenamento completata
+model WorkoutSession {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  clientId    String   @db.ObjectId
+  workoutId   String   @db.ObjectId
+  data        DateTime @default(now())
+  durata      Int? // Durata in minuti
+  feedback    String?
+  rating      Int? // 1-5 stelle
+  completato  Boolean  @default(false)
+  exerciseData Json? // Dati dettagliati degli esercizi eseguiti
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  client  User    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@map("workout_sessions")
+}
+
+// Model Measurement - Misurazione corporea
+model Measurement {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  clientId         String   @db.ObjectId
+  data             DateTime @default(now())
+  peso             Float?
+  altezza          Float?
+  petto            Float?
+  vita             Float?
+  fianchi          Float?
+  braccioSx        Float?
+  braccioDx        Float?
+  gambaSx          Float?
+  gambaDx          Float?
+  percentualeGrasso Float?
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("measurements")
+}
+
+// Model Checkpoint - Checkpoint progressi con foto
+model Checkpoint {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  clientId   String   @db.ObjectId
+  data       DateTime @default(now())
+  note       String?
+  foto       String[] // Array di URL immagini
+  prossimoDB DateTime? // Prossimo checkpoint programmato
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("checkpoints")
+}
+
+// Model Appointment - Appuntamento con il PT
+model AppointmentClient {
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  clientId  String            @db.ObjectId
+  data      DateTime
+  ora       String
+  stato     AppointmentStatus @default(PENDING)
+  note      String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Relations
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("appointments_client")
+}
+
+model AppointmentTrainer {
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  trainerId String            @db.ObjectId
+  data      DateTime
+  ora       String
+  stato     AppointmentStatus @default(PENDING)
+  note      String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Relations
+  trainer User @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@map("appointments_trainer")
+}
+
+// Model Notification - Notifiche sistema
+model Notification {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String           @db.ObjectId
+  tipo          NotificationType
+  messaggio     String
+  letto         Boolean          @default(false)
+  dataCreazione DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/workouts?clientId=xxx - Recupera schede di un cliente
+// GET /api/workouts?clientId=xxx - Get workouts for a client
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -17,19 +16,19 @@ export async function GET(request: Request) {
 
     if (!clientId) {
       return NextResponse.json(
-        { error: "clientId richiesto" },
+        { error: "clientId required" },
         { status: 400 }
       );
     }
 
-    // Trova il client profile
+    // Find the client profile
     const clientProfile = await prisma.clientProfile.findUnique({
       where: { userId: clientId },
     });
 
     if (!clientProfile) {
       return NextResponse.json(
-        { error: "Profilo cliente non trovato" },
+        { error: "Client profile not found" },
         { status: 404 }
       );
     }
@@ -41,7 +40,7 @@ export async function GET(request: Request) {
       include: {
         exercises: {
           orderBy: {
-            ordine: "asc",
+            order: "asc",
           },
         },
         _count: {
@@ -51,63 +50,77 @@ export async function GET(request: Request) {
         },
       },
       orderBy: {
-        dataCreazione: "desc",
+        createdDate: "desc",
       },
     });
 
     return NextResponse.json(workouts);
   } catch (error) {
-    console.error("Errore nel recuperare le schede:", error);
+    console.error("Error fetching workouts:", error);
     return NextResponse.json(
-      { error: "Errore nel recuperare le schede" },
+      { error: "Error fetching workouts" },
       { status: 500 }
     );
   }
 }
 
-// POST /api/workouts - Crea una nuova scheda (solo trainer)
+// POST /api/workouts - Create a new workout (trainer only)
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (session.user.role !== "TRAINER") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const body = await request.json();
     const {
       clientId,
-      nome,
-      descrizione,
-      dataScadenza,
+      name,
+      description,
+      expiryDate,
       exercises,
       setAsActive,
     } = body;
 
-    if (!clientId || !nome || !exercises || exercises.length === 0) {
+    if (!clientId || !name || !exercises || exercises.length === 0) {
       return NextResponse.json(
-        { error: "clientId, nome ed esercizi sono obbligatori" },
+        { error: "clientId, name and exercises are required" },
         { status: 400 }
       );
     }
 
-    // Trova il client profile
-    const clientProfile = await prisma.clientProfile.findUnique({
+    // Find or create the client profile
+    let clientProfile = await prisma.clientProfile.findUnique({
       where: { userId: clientId },
     });
 
     if (!clientProfile) {
-      return NextResponse.json(
-        { error: "Profilo cliente non trovato" },
-        { status: 404 }
-      );
+      // Verify the user exists and is a CLIENT
+      const user = await prisma.user.findUnique({
+        where: { id: clientId, role: "CLIENT" },
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: "Client not found" },
+          { status: 404 }
+        );
+      }
+
+      // Create the client profile automatically
+      clientProfile = await prisma.clientProfile.create({
+        data: {
+          userId: clientId,
+        },
+      });
     }
 
-    // Se setAsActive è true, disattiva tutte le altre schede
+    // If setAsActive is true, deactivate all other workouts
     if (setAsActive) {
       await prisma.workout.updateMany({
         where: {
@@ -120,31 +133,31 @@ export async function POST(request: Request) {
       });
     }
 
-    // Crea la nuova scheda con esercizi
+    // Create the new workout with exercises
     const workout = await prisma.workout.create({
       data: {
         clientId: clientProfile.id,
-        nome,
-        descrizione,
-        dataScadenza: dataScadenza ? new Date(dataScadenza) : null,
+        name,
+        description,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
         isActive: setAsActive || false,
         exercises: {
           create: exercises.map((ex: any, index: number) => ({
-            nome: ex.nome,
-            serie: ex.serie,
-            ripetizioni: ex.ripetizioni,
-            peso: ex.peso,
-            recupero: ex.recupero,
-            note: ex.note,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+            rest: ex.rest,
+            notes: ex.notes,
             videoUrl: ex.videoUrl,
-            ordine: index + 1,
+            order: index + 1,
           })),
         },
       },
       include: {
         exercises: {
           orderBy: {
-            ordine: "asc",
+            order: "asc",
           },
         },
       },
@@ -152,9 +165,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(workout, { status: 201 });
   } catch (error) {
-    console.error("Errore nella creazione della scheda:", error);
+    console.error("Error creating workout:", error);
     return NextResponse.json(
-      { error: "Errore nella creazione della scheda" },
+      { error: "Error creating workout" },
       { status: 500 }
     );
   }

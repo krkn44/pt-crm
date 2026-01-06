@@ -10,55 +10,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enum per i ruoli utente
+// Enum for user roles
 enum UserRole {
   CLIENT
   TRAINER
 }
 
-// Enum per lo stato degli appuntamenti
-enum AppointmentStatus {
-  PENDING
-  CONFIRMED
-  COMPLETED
-  CANCELLED
-}
-
-// Enum per il tipo di notifiche
+// Enum for notification types
 enum NotificationType {
   WORKOUT_COMPLETED
   WORKOUT_REMINDER
-  APPOINTMENT_SCHEDULED
-  APPOINTMENT_REMINDER
   MEASUREMENT_ADDED
   CHECKPOINT_DUE
   FEEDBACK_RECEIVED
   INACTIVITY_WARNING
 }
 
-// Model User - Utente base (può essere Cliente o Trainer)
+// Model User - Base user (can be Client or Trainer)
 model User {
-  id             String          @id @default(auto()) @map("_id") @db.ObjectId
-  email          String          @unique
-  password       String
-  role           UserRole        @default(CLIENT)
-  nome           String
-  cognome        String
-  name           String? // Better-Auth compatibility (derived from nome+cognome)
-  emailVerified  Boolean         @default(false) // Better-Auth email verification
-  image          String? // Better-Auth profile image (optional)
-  telefono       String?
-  dataIscrizione DateTime        @default(now())
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id               String          @id @default(cuid()) @map("_id")
+  email            String          @unique
+  password         String? // Optional - Better-Auth manages password in Account table
+  role             UserRole        @default(CLIENT)
+  firstName        String?
+  lastName         String?
+  name             String? // Better-Auth compatibility (derived from firstName+lastName)
+  emailVerified    Boolean         @default(false) // Better-Auth email verification
+  image            String? // Better-Auth profile image (optional)
+  phone            String?
+  registrationDate DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   // Relations
   clientProfile     ClientProfile?
   workoutSessions   WorkoutSession[]
   measurements      Measurement[]
   checkpoints       Checkpoint[]
-  appointmentsAsClient AppointmentClient[]
-  appointmentsAsTrainer AppointmentTrainer[]
   notifications     Notification[]
   sessions          Session[] // Better-Auth sessions
   accounts          Account[] // Better-Auth accounts
@@ -68,8 +56,8 @@ model User {
 
 // Better-Auth Session Model
 model Session {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid()) @map("_id")
+  userId    String
   expiresAt DateTime
   token     String   @unique
   ipAddress String?
@@ -84,8 +72,8 @@ model Session {
 
 // Better-Auth Account Model (for OAuth providers if needed)
 model Account {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String   @db.ObjectId
+  id                String   @id @default(cuid()) @map("_id")
+  userId            String
   accountId         String
   providerId        String
   accessToken       String?
@@ -104,7 +92,7 @@ model Account {
 
 // Better-Auth Verification Model (email verification tokens)
 model Verification {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(cuid()) @map("_id")
   identifier String
   value      String
   expiresAt  DateTime
@@ -115,14 +103,14 @@ model Verification {
   @@map("verifications")
 }
 
-// Model ClientProfile - Profilo specifico del cliente
+// Model ClientProfile - Client-specific profile
 model ClientProfile {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String   @unique @db.ObjectId
-  obiettivi      String?
-  note           String?
-  dataInizio     DateTime @default(now())
-  scadenzaScheda DateTime?
+  id             String   @id @default(cuid()) @map("_id")
+  userId         String   @unique
+  goals          String?
+  notes          String?
+  startDate      DateTime @default(now())
+  cardExpiryDate DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -133,17 +121,17 @@ model ClientProfile {
   @@map("client_profiles")
 }
 
-// Model Workout - Scheda di allenamento
+// Model Workout - Workout program/card
 model Workout {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  clientId      String    @db.ObjectId
-  nome          String
-  descrizione   String?
-  dataCreazione DateTime  @default(now())
-  dataScadenza  DateTime?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String    @id @default(cuid()) @map("_id")
+  clientId    String
+  name        String
+  description String?
+  createdDate DateTime  @default(now())
+  expiryDate  DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
   client          ClientProfile    @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -153,20 +141,20 @@ model Workout {
   @@map("workouts")
 }
 
-// Model Exercise - Esercizio in una scheda
+// Model Exercise - Exercise within a workout
 model Exercise {
-  id         String  @id @default(auto()) @map("_id") @db.ObjectId
-  workoutId  String  @db.ObjectId
-  nome       String
-  serie      Int
-  ripetizioni String // Può essere "12" o "10-12" o "AMRAP"
-  peso       String? // Può essere "20kg" o "Corpo libero"
-  recupero   String? // Es. "60s" o "1min"
-  note       String?
-  ordine     Int     // Per mantenere l'ordine degli esercizi
-  videoUrl   String? // Link YouTube tutorial
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String  @id @default(cuid()) @map("_id")
+  workoutId String
+  name      String
+  sets      Int
+  reps      String // Can be "12" or "10-12" or "AMRAP"
+  weight    String? // Can be "20kg" or "Bodyweight"
+  rest      String? // E.g. "60s" or "1min"
+  notes     String?
+  order     Int     // To maintain exercise order
+  videoUrl  String? // YouTube tutorial link
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
@@ -174,19 +162,19 @@ model Exercise {
   @@map("exercises")
 }
 
-// Model WorkoutSession - Sessione di allenamento completata
+// Model WorkoutSession - Completed workout session
 model WorkoutSession {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  clientId    String   @db.ObjectId
-  workoutId   String   @db.ObjectId
-  data        DateTime @default(now())
-  durata      Int? // Durata in minuti
-  feedback    String?
-  rating      Int? // 1-5 stelle
-  completato  Boolean  @default(false)
-  exerciseData Json? // Dati dettagliati degli esercizi eseguiti
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid()) @map("_id")
+  clientId     String
+  workoutId    String
+  date         DateTime @default(now())
+  duration     Int? // Duration in minutes
+  feedback     String?
+  rating       Int? // 1-5 stars
+  completed    Boolean  @default(false)
+  exerciseData Json? // Detailed exercise data performed
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   client  User    @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -195,24 +183,26 @@ model WorkoutSession {
   @@map("workout_sessions")
 }
 
-// Model Measurement - Misurazione corporea
+// Model Measurement - Body measurements
 model Measurement {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  clientId         String   @db.ObjectId
-  data             DateTime @default(now())
-  peso             Float?
-  altezza          Float?
-  petto            Float?
-  vita             Float?
-  fianchi          Float?
-  braccioSx        Float?
-  braccioDx        Float?
-  gambaSx          Float?
-  gambaDx          Float?
-  percentualeGrasso Float?
-  note             String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(cuid()) @map("_id")
+  clientId          String
+  date              DateTime @default(now())
+  weight            Float?
+  // Circumferences (cm)
+  chest             Float?
+  shoulders         Float?
+  waist             Float?
+  hips              Float?
+  bicepRelaxed      Float?   // Weak arm - relaxed
+  bicepContracted   Float?   // Weak arm - contracted
+  quadRelaxed       Float?   // Weak leg - relaxed
+  quadContracted    Float?   // Weak leg - contracted
+  calfContracted    Float?   // Calf - contracted
+  bodyFatPercentage Float?   // Optional - professional measurement only
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relations
   client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -220,16 +210,16 @@ model Measurement {
   @@map("measurements")
 }
 
-// Model Checkpoint - Checkpoint progressi con foto
+// Model Checkpoint - Progress checkpoint with photos
 model Checkpoint {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  clientId   String   @db.ObjectId
-  data       DateTime @default(now())
-  note       String?
-  foto       String[] // Array di URL immagini
-  prossimoDB DateTime? // Prossimo checkpoint programmato
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid()) @map("_id")
+  clientId    String
+  date        DateTime @default(now())
+  notes       String?
+  photos      String[] // Array of image URLs
+  nextDueDate DateTime? // Next scheduled checkpoint
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -237,49 +227,16 @@ model Checkpoint {
   @@map("checkpoints")
 }
 
-// Model Appointment - Appuntamento con il PT
-model AppointmentClient {
-  id        String            @id @default(auto()) @map("_id") @db.ObjectId
-  clientId  String            @db.ObjectId
-  data      DateTime
-  ora       String
-  stato     AppointmentStatus @default(PENDING)
-  note      String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  // Relations
-  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@map("appointments_client")
-}
-
-model AppointmentTrainer {
-  id        String            @id @default(auto()) @map("_id") @db.ObjectId
-  trainerId String            @db.ObjectId
-  data      DateTime
-  ora       String
-  stato     AppointmentStatus @default(PENDING)
-  note      String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  // Relations
-  trainer User @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-
-  @@map("appointments_trainer")
-}
-
-// Model Notification - Notifiche sistema
+// Model Notification - System notifications
 model Notification {
-  id            String           @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String           @db.ObjectId
-  tipo          NotificationType
-  messaggio     String
-  letto         Boolean          @default(false)
-  dataCreazione DateTime         @default(now())
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id          String           @id @default(cuid()) @map("_id")
+  userId      String
+  type        NotificationType
+  message     String
+  read        Boolean          @default(false)
+  createdDate DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

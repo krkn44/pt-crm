@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Pagination } from "@/components/ui/pagination";
@@ -9,62 +8,62 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { it } from "date-fns/locale";
 
 const ITEMS_PER_PAGE = 15;
 
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: { page?: string; filter?: string };
+  searchParams: Promise<{ page?: string; filter?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session) {
     return null;
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
-  const currentPage = Number(searchParams.page) || 1;
+  const resolvedSearchParams = await searchParams;
+  const userName = `${session.user.firstName} ${session.user.lastName}`;
+  const currentPage = Number(resolvedSearchParams.page) || 1;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
-  const filter = searchParams.filter || "all";
+  const filter = resolvedSearchParams.filter || "all";
 
-  // Prepara where clause per filtro
+  // Prepare where clause for filter
   const whereClause: any = {
     userId: session.user.id,
   };
 
   if (filter === "unread") {
-    whereClause.letto = false;
+    whereClause.read = false;
   } else if (filter === "read") {
-    whereClause.letto = true;
+    whereClause.read = true;
   }
 
-  // Count totale notifiche
+  // Total notification count
   const totalCount = await prisma.notification.count({
     where: whereClause,
   });
 
-  // Count per filtri
+  // Count per filter
   const unreadCount = await prisma.notification.count({
     where: {
       userId: session.user.id,
-      letto: false,
+      read: false,
     },
   });
 
   const readCount = await prisma.notification.count({
     where: {
       userId: session.user.id,
-      letto: true,
+      read: true,
     },
   });
 
-  // Recupera notifiche paginate
+  // Fetch paginated notifications
   const notifications = await prisma.notification.findMany({
     where: whereClause,
     orderBy: {
-      dataCreazione: "desc",
+      createdDate: "desc",
     },
     skip,
     take: ITEMS_PER_PAGE,
@@ -73,34 +72,34 @@ export default async function NotificationsPage({
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const notificationTypeLabels = {
-    WORKOUT_COMPLETED: { label: "Allenamento", color: "bg-blue-500" },
-    WORKOUT_REMINDER: { label: "Promemoria", color: "bg-yellow-500" },
-    APPOINTMENT_SCHEDULED: { label: "Appuntamento", color: "bg-green-500" },
-    APPOINTMENT_REMINDER: { label: "Promemoria", color: "bg-yellow-500" },
-    MEASUREMENT_ADDED: { label: "Misurazione", color: "bg-purple-500" },
+    WORKOUT_COMPLETED: { label: "Workout", color: "bg-blue-500" },
+    WORKOUT_REMINDER: { label: "Reminder", color: "bg-yellow-500" },
+    APPOINTMENT_SCHEDULED: { label: "Appointment", color: "bg-green-500" },
+    APPOINTMENT_REMINDER: { label: "Reminder", color: "bg-yellow-500" },
+    MEASUREMENT_ADDED: { label: "Measurement", color: "bg-purple-500" },
     CHECKPOINT_DUE: { label: "Checkpoint", color: "bg-orange-500" },
     FEEDBACK_RECEIVED: { label: "Feedback", color: "bg-pink-500" },
-    INACTIVITY_WARNING: { label: "Inattività", color: "bg-red-500" },
+    INACTIVITY_WARNING: { label: "Inactivity", color: "bg-red-500" },
   };
 
   return (
     <div className="flex flex-col">
-      <Header userName={userName} title="Notifiche" />
+      <Header userName={userName} title="Notifications" />
 
       <div className="flex-1 space-y-6 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Notifiche</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Notifications</h2>
             <p className="text-muted-foreground">
               {unreadCount > 0
-                ? `${unreadCount} notifiche non lette`
-                : "Tutte le notifiche lette"}
+                ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
+                : "All notifications read"}
             </p>
           </div>
           {unreadCount > 0 && (
             <Button variant="outline">
               <Check className="mr-2 h-4 w-4" />
-              Segna tutte come lette
+              Mark all as read
             </Button>
           )}
         </div>
@@ -108,13 +107,13 @@ export default async function NotificationsPage({
         <Tabs defaultValue={filter} className="space-y-4">
           <TabsList>
             <TabsTrigger value="all">
-              Tutte ({unreadCount + readCount})
+              All ({unreadCount + readCount})
             </TabsTrigger>
             <TabsTrigger value="unread">
-              Non lette ({unreadCount})
+              Unread ({unreadCount})
             </TabsTrigger>
             <TabsTrigger value="read">
-              Lette ({readCount})
+              Read ({readCount})
             </TabsTrigger>
           </TabsList>
 
@@ -123,15 +122,15 @@ export default async function NotificationsPage({
               <CardHeader>
                 <CardTitle>
                   {filter === "unread"
-                    ? "Notifiche Non Lette"
+                    ? "Unread Notifications"
                     : filter === "read"
-                    ? "Notifiche Lette"
-                    : "Tutte le Notifiche"}
+                    ? "Read Notifications"
+                    : "All Notifications"}
                 </CardTitle>
                 <CardDescription>
                   {totalCount > 0
-                    ? `${totalCount} notifich${totalCount !== 1 ? "e" : "a"}`
-                    : "Nessuna notifica"}
+                    ? `${totalCount} notification${totalCount !== 1 ? "s" : ""}`
+                    : "No notifications"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -139,12 +138,12 @@ export default async function NotificationsPage({
                   <>
                     <div className="space-y-3">
                       {notifications.map((notification) => {
-                        const config = notificationTypeLabels[notification.tipo];
+                        const config = notificationTypeLabels[notification.type];
                         return (
                           <div
                             key={notification.id}
                             className={`flex items-start gap-4 p-4 rounded-lg border ${
-                              !notification.letto ? "bg-accent/50" : ""
+                              !notification.read ? "bg-accent/50" : ""
                             }`}
                           >
                             <div
@@ -153,22 +152,21 @@ export default async function NotificationsPage({
                             <div className="flex-1">
                               <div className="flex items-start justify-between gap-2">
                                 <p className="text-sm font-medium">
-                                  {notification.messaggio}
+                                  {notification.message}
                                 </p>
                                 <Badge variant="outline" className="text-xs">
                                   {config.label}
                                 </Badge>
                               </div>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {formatDistanceToNow(notification.dataCreazione, {
+                                {formatDistanceToNow(notification.createdDate, {
                                   addSuffix: true,
-                                  locale: it,
                                 })}
                               </p>
                             </div>
-                            {!notification.letto && (
+                            {!notification.read && (
                               <Button variant="ghost" size="sm">
-                                Segna come letta
+                                Mark as read
                               </Button>
                             )}
                           </div>
@@ -187,10 +185,10 @@ export default async function NotificationsPage({
                     <Bell className="h-16 w-16 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">
                       {filter === "unread"
-                        ? "Nessuna notifica non letta"
+                        ? "No unread notifications"
                         : filter === "read"
-                        ? "Nessuna notifica letta"
-                        : "Nessuna notifica disponibile"}
+                        ? "No read notifications"
+                        : "No notifications available"}
                     </p>
                   </div>
                 )}

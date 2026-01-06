@@ -13,12 +13,12 @@ import { exerciseLibrary, exerciseCategories, type ExerciseTemplate } from "@/li
 import { Plus, X, GripVertical, Save, Library } from "lucide-react";
 
 interface Exercise {
-  nome: string;
-  serie: number;
-  ripetizioni: string;
-  peso?: string;
-  recupero?: string;
-  note?: string;
+  name: string;
+  sets: number;
+  reps: string;
+  weight?: string;
+  rest?: string;
+  notes?: string;
   videoUrl?: string;
 }
 
@@ -26,9 +26,9 @@ interface WorkoutEditorProps {
   clientId: string;
   initialData?: {
     id?: string;
-    nome: string;
-    descrizione?: string;
-    dataScadenza?: string;
+    name: string;
+    description?: string;
+    expiryDate?: string;
     exercises: Exercise[];
   };
   onSuccess?: () => void;
@@ -44,9 +44,9 @@ export function WorkoutEditor({
   const [showLibrary, setShowLibrary] = useState(false);
 
   const [formData, setFormData] = useState({
-    nome: initialData?.nome || "",
-    descrizione: initialData?.descrizione || "",
-    dataScadenza: initialData?.dataScadenza || "",
+    name: initialData?.name || "",
+    description: initialData?.description || "",
+    expiryDate: initialData?.expiryDate || "",
   });
 
   const [exercises, setExercises] = useState<Exercise[]>(
@@ -55,12 +55,12 @@ export function WorkoutEditor({
 
   const addExercise = (exercise?: ExerciseTemplate) => {
     const newExercise: Exercise = exercise || {
-      nome: "",
-      serie: 3,
-      ripetizioni: "12",
-      peso: "",
-      recupero: "60s",
-      note: "",
+      name: "",
+      sets: 3,
+      reps: "12",
+      weight: "",
+      rest: "60s",
+      notes: "",
       videoUrl: "",
     };
     setExercises([...exercises, newExercise]);
@@ -111,7 +111,7 @@ export function WorkoutEditor({
           clientId,
           ...formData,
           exercises,
-          setAsActive: true, // Imposta automaticamente come scheda attiva
+          setAsActive: true, // Automatically set as active card
         }),
       });
 
@@ -123,10 +123,10 @@ export function WorkoutEditor({
           router.refresh();
         }
       } else {
-        alert("Errore nel salvare la scheda");
+        alert("Error saving workout");
       }
     } catch (error) {
-      alert("Errore nel salvare la scheda");
+      alert("Error saving workout");
     } finally {
       setLoading(false);
     }
@@ -134,65 +134,65 @@ export function WorkoutEditor({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Informazioni Scheda */}
+      {/* Workout Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Informazioni Scheda</CardTitle>
+          <CardTitle>Workout Information</CardTitle>
           <CardDescription>
-            Dettagli principali della scheda di allenamento
+            Main details of the workout program
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome Scheda *</Label>
+              <Label htmlFor="name">Workout Name *</Label>
               <Input
-                id="nome"
-                value={formData.nome}
+                id="name"
+                value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="es. Scheda Full Body A"
+                placeholder="e.g. Full Body Workout A"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dataScadenza">Data Scadenza</Label>
+              <Label htmlFor="expiryDate">Expiry Date</Label>
               <Input
-                id="dataScadenza"
+                id="expiryDate"
                 type="date"
-                value={formData.dataScadenza}
+                value={formData.expiryDate}
                 onChange={(e) =>
-                  setFormData({ ...formData, dataScadenza: e.target.value })
+                  setFormData({ ...formData, expiryDate: e.target.value })
                 }
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descrizione">Descrizione</Label>
+            <Label htmlFor="description">Description</Label>
             <textarea
-              id="descrizione"
-              value={formData.descrizione}
+              id="description"
+              value={formData.description}
               onChange={(e) =>
-                setFormData({ ...formData, descrizione: e.target.value })
+                setFormData({ ...formData, description: e.target.value })
               }
-              placeholder="es. Programma per principianti - 3 volte a settimana"
+              placeholder="e.g. Beginner program - 3 times per week"
               className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Esercizi */}
+      {/* Exercises */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Esercizi ({exercises.length})</CardTitle>
+              <CardTitle>Exercises ({exercises.length})</CardTitle>
               <CardDescription>
-                Aggiungi gli esercizi alla scheda
+                Add exercises to the workout
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -202,17 +202,17 @@ export function WorkoutEditor({
                 onClick={() => setShowLibrary(!showLibrary)}
               >
                 <Library className="mr-2 h-4 w-4" />
-                Libreria
+                Library
               </Button>
               <Button type="button" onClick={() => addExercise()}>
                 <Plus className="mr-2 h-4 w-4" />
-                Nuovo Esercizio
+                New Exercise
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Libreria Esercizi */}
+          {/* Exercise Library */}
           {showLibrary && (
             <Card className="bg-secondary/20">
               <CardContent className="pt-6">
@@ -229,7 +229,7 @@ export function WorkoutEditor({
                     <TabsContent key={cat.value} value={cat.value}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {exerciseLibrary
-                          .filter((ex) => ex.categoria === cat.value)
+                          .filter((ex) => ex.category === cat.value)
                           .map((ex, idx) => (
                             <button
                               key={idx}
@@ -238,9 +238,9 @@ export function WorkoutEditor({
                               className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent text-left"
                             >
                               <div>
-                                <p className="font-medium text-sm">{ex.nome}</p>
+                                <p className="font-medium text-sm">{ex.name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {ex.serie}x{ex.ripetizioni} • {ex.peso || "Corpo libero"}
+                                  {ex.sets}x{ex.reps} • {ex.weight || "Bodyweight"}
                                 </p>
                               </div>
                               <Plus className="h-4 w-4" />
@@ -254,11 +254,11 @@ export function WorkoutEditor({
             </Card>
           )}
 
-          {/* Lista Esercizi */}
+          {/* Exercise List */}
           {exercises.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              Nessun esercizio aggiunto. Usa il pulsante "Nuovo Esercizio" o
-              "Libreria" per iniziare.
+              No exercises added. Use the &quot;New Exercise&quot; or
+              &quot;Library&quot; button to start.
             </div>
           ) : (
             <div className="space-y-3">
@@ -287,36 +287,36 @@ export function WorkoutEditor({
                         </button>
                       </div>
 
-                      {/* Ordine */}
+                      {/* Order */}
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold mt-2">
                         {index + 1}
                       </div>
 
-                      {/* Campi Esercizio */}
+                      {/* Exercise Fields */}
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-3">
                         <div className="md:col-span-2 space-y-1">
-                          <Label className="text-xs">Nome Esercizio</Label>
+                          <Label className="text-xs">Exercise Name</Label>
                           <Input
-                            value={exercise.nome}
+                            value={exercise.name}
                             onChange={(e) =>
-                              updateExercise(index, "nome", e.target.value)
+                              updateExercise(index, "name", e.target.value)
                             }
-                            placeholder="es. Panca piana"
+                            placeholder="e.g. Bench Press"
                             required
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs">Serie</Label>
+                          <Label className="text-xs">Sets</Label>
                           <Input
                             type="number"
                             min="1"
                             max="10"
-                            value={exercise.serie}
+                            value={exercise.sets}
                             onChange={(e) =>
                               updateExercise(
                                 index,
-                                "serie",
+                                "sets",
                                 parseInt(e.target.value) || 3
                               )
                             }
@@ -325,52 +325,52 @@ export function WorkoutEditor({
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs">Ripetizioni</Label>
+                          <Label className="text-xs">Reps</Label>
                           <Input
-                            value={exercise.ripetizioni}
+                            value={exercise.reps}
                             onChange={(e) =>
-                              updateExercise(index, "ripetizioni", e.target.value)
+                              updateExercise(index, "reps", e.target.value)
                             }
-                            placeholder="12 o 8-12"
+                            placeholder="12 or 8-12"
                             required
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs">Peso</Label>
+                          <Label className="text-xs">Weight</Label>
                           <Input
-                            value={exercise.peso || ""}
+                            value={exercise.weight || ""}
                             onChange={(e) =>
-                              updateExercise(index, "peso", e.target.value)
+                              updateExercise(index, "weight", e.target.value)
                             }
                             placeholder="20kg"
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs">Recupero</Label>
+                          <Label className="text-xs">Rest</Label>
                           <Input
-                            value={exercise.recupero || ""}
+                            value={exercise.rest || ""}
                             onChange={(e) =>
-                              updateExercise(index, "recupero", e.target.value)
+                              updateExercise(index, "rest", e.target.value)
                             }
                             placeholder="60s"
                           />
                         </div>
 
                         <div className="md:col-span-4 space-y-1">
-                          <Label className="text-xs">Note</Label>
+                          <Label className="text-xs">Notes</Label>
                           <Input
-                            value={exercise.note || ""}
+                            value={exercise.notes || ""}
                             onChange={(e) =>
-                              updateExercise(index, "note", e.target.value)
+                              updateExercise(index, "notes", e.target.value)
                             }
-                            placeholder="Consigli di esecuzione"
+                            placeholder="Execution tips"
                           />
                         </div>
 
                         <div className="md:col-span-2 space-y-1">
-                          <Label className="text-xs">URL Video</Label>
+                          <Label className="text-xs">Video URL</Label>
                           <Input
                             value={exercise.videoUrl || ""}
                             onChange={(e) =>
@@ -406,11 +406,11 @@ export function WorkoutEditor({
           onClick={() => router.back()}
           className="flex-1"
         >
-          Annulla
+          Cancel
         </Button>
         <Button type="submit" disabled={loading || exercises.length === 0} className="flex-1">
           <Save className="mr-2 h-4 w-4" />
-          {loading ? "Salvataggio..." : initialData?.id ? "Aggiorna Scheda" : "Crea Scheda"}
+          {loading ? "Saving..." : initialData?.id ? "Update Workout" : "Create Workout"}
         </Button>
       </div>
     </form>

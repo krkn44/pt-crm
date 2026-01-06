@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "PT CRM - Personal Trainer Management",
-  description: "Sistema completo di gestione per personal trainer e clienti",
+  description: "Complete management system for personal trainers and clients",
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="it">
+    <html lang="en">
       <body className={inter.className}>{children}</body>
     </html>
   );

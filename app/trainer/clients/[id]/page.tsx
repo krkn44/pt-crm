@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,27 +20,27 @@ import {
   Plus,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
-import { it } from "date-fns/locale";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
 export default async function ClientDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session || session.user.role !== "TRAINER") {
     return notFound();
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
+  const { id } = await params;
+  const userName = `${session.user.firstName} ${session.user.lastName}`;
 
-  // Recupera i dati del cliente
+  // Fetch client data
   const client = await prisma.user.findUnique({
     where: {
-      id: params.id,
+      id,
       role: "CLIENT",
     },
     include: {
@@ -51,7 +50,7 @@ export default async function ClientDetailPage({
             include: {
               exercises: {
                 orderBy: {
-                  ordine: "asc",
+                  order: "asc",
                 },
               },
               _count: {
@@ -61,7 +60,7 @@ export default async function ClientDetailPage({
               },
             },
             orderBy: {
-              dataCreazione: "desc",
+              createdDate: "desc",
             },
           },
         },
@@ -70,18 +69,18 @@ export default async function ClientDetailPage({
         include: {
           workout: {
             select: {
-              nome: true,
+              name: true,
             },
           },
         },
         orderBy: {
-          data: "desc",
+          date: "desc",
         },
         take: 10,
       },
       measurements: {
         orderBy: {
-          data: "desc",
+          date: "desc",
         },
         take: 12,
       },
@@ -92,50 +91,50 @@ export default async function ClientDetailPage({
     return notFound();
   }
 
-  const initials = `${client.nome[0]}${client.cognome[0]}`.toUpperCase();
+  const initials = `${client.firstName?.[0] || ""}${client.lastName?.[0] || ""}`.toUpperCase();
   const activeWorkout = client.clientProfile?.workouts.find((w) => w.isActive);
 
-  // Prepara dati per grafici progressi
+  // Prepare data for progress charts
   const weightData = client.measurements
-    .filter((m) => m.peso)
+    .filter((m) => m.weight !== null)
     .reverse()
     .map((m) => ({
-      date: format(m.data, "dd/MM", { locale: it }),
-      peso: m.peso,
+      date: format(m.date, "dd/MM"),
+      weight: m.weight as number,
     }));
 
   const bodyMeasurementsData = client.measurements
-    .filter((m) => m.petto || m.vita || m.fianchi)
+    .filter((m) => m.chest || m.waist || m.hips)
     .reverse()
     .map((m) => ({
-      date: format(m.data, "dd/MM", { locale: it }),
-      petto: m.petto || 0,
-      vita: m.vita || 0,
-      fianchi: m.fianchi || 0,
+      date: format(m.date, "dd/MM"),
+      chest: m.chest || 0,
+      waist: m.waist || 0,
+      hips: m.hips || 0,
     }));
 
   const bodyFatData = client.measurements
-    .filter((m) => m.percentualeGrasso)
+    .filter((m) => m.bodyFatPercentage !== null)
     .reverse()
     .map((m) => ({
-      date: format(m.data, "dd/MM", { locale: it }),
-      grasso: m.percentualeGrasso,
+      date: format(m.date, "dd/MM"),
+      fat: m.bodyFatPercentage as number,
     }));
 
   const armsLegsData = client.measurements
-    .filter((m) => m.braccioSx || m.braccioDx || m.gambaSx || m.gambaDx)
+    .filter((m) => m.bicepRelaxed || m.bicepContracted || m.quadRelaxed || m.quadContracted)
     .reverse()
     .map((m) => ({
-      date: format(m.data, "dd/MM", { locale: it }),
-      braccioSx: m.braccioSx || 0,
-      braccioDx: m.braccioDx || 0,
-      gambaSx: m.gambaSx || 0,
-      gambaDx: m.gambaDx || 0,
+      date: format(m.date, "dd/MM"),
+      bicepRelaxed: m.bicepRelaxed || 0,
+      bicepContracted: m.bicepContracted || 0,
+      quadRelaxed: m.quadRelaxed || 0,
+      quadContracted: m.quadContracted || 0,
     }));
 
   return (
     <div className="flex flex-col">
-      <Header userName={userName} title="Dettaglio Cliente" />
+      <Header userName={userName} title="Client Details" />
 
       <div className="flex-1 space-y-6 p-6">
         {/* Client Header */}
@@ -150,43 +149,41 @@ export default async function ClientDetailPage({
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-3xl font-bold">
-                      {client.nome} {client.cognome}
+                      {client.firstName} {client.lastName}
                     </h2>
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Mail className="h-4 w-4" />
                         <span>{client.email}</span>
                       </div>
-                      {client.telefono && (
+                      {client.phone && (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Phone className="h-4 w-4" />
-                          <span>{client.telefono}</span>
+                          <span>{client.phone}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                         <span>
-                          Iscritto dal{" "}
-                          {format(client.dataIscrizione, "dd MMMM yyyy", {
-                            locale: it,
-                          })}
+                          Member since{" "}
+                          {format(client.registrationDate, "dd MMMM yyyy")}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <Link href={`/trainer/clients/${params.id}/edit`}>
+                  <Link href={`/trainer/clients/${id}/edit`}>
                     <Button>
                       <Edit className="mr-2 h-4 w-4" />
-                      Modifica
+                      Edit
                     </Button>
                   </Link>
                 </div>
 
-                {client.clientProfile?.obiettivi && (
+                {client.clientProfile?.goals && (
                   <div className="mt-4 p-4 rounded-lg bg-secondary/50">
-                    <p className="text-sm font-medium mb-1">Obiettivi</p>
+                    <p className="text-sm font-medium mb-1">Goals</p>
                     <p className="text-sm text-muted-foreground">
-                      {client.clientProfile.obiettivi}
+                      {client.clientProfile.goals}
                     </p>
                   </div>
                 )}
@@ -197,24 +194,24 @@ export default async function ClientDetailPage({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
               <div className="text-center">
                 <p className="text-2xl font-bold">{client.workoutSessions.length}</p>
-                <p className="text-sm text-muted-foreground">Allenamenti</p>
+                <p className="text-sm text-muted-foreground">Workouts</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">{client.measurements.length}</p>
-                <p className="text-sm text-muted-foreground">Misurazioni</p>
+                <p className="text-sm text-muted-foreground">Measurements</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">
                   {client.clientProfile?.workouts.length || 0}
                 </p>
-                <p className="text-sm text-muted-foreground">Schede</p>
+                <p className="text-sm text-muted-foreground">Programs</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">
                   {client.workoutSessions.filter((s) => s.rating && s.rating >= 4)
                     .length}
                 </p>
-                <p className="text-sm text-muted-foreground">Feedback Positivi</p>
+                <p className="text-sm text-muted-foreground">Positive Feedback</p>
               </div>
             </div>
           </CardContent>
@@ -225,17 +222,17 @@ export default async function ClientDetailPage({
           <TabsList>
             <TabsTrigger value="workout">
               <Dumbbell className="mr-2 h-4 w-4" />
-              Scheda
+              Workout
             </TabsTrigger>
             <TabsTrigger value="progress">
               <TrendingUp className="mr-2 h-4 w-4" />
-              Progressi
+              Progress
             </TabsTrigger>
             <TabsTrigger value="feedback">
               <FileText className="mr-2 h-4 w-4" />
               Feedback
             </TabsTrigger>
-            <TabsTrigger value="notes">Note</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
 
           {/* Workout Tab */}
@@ -247,19 +244,19 @@ export default async function ClientDetailPage({
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <CardTitle>{activeWorkout.nome}</CardTitle>
-                          <Badge>Attiva</Badge>
+                          <CardTitle>{activeWorkout.name}</CardTitle>
+                          <Badge>Active</Badge>
                         </div>
-                        {activeWorkout.descrizione && (
+                        {activeWorkout.description && (
                           <CardDescription>
-                            {activeWorkout.descrizione}
+                            {activeWorkout.description}
                           </CardDescription>
                         )}
                       </div>
-                      <Link href={`/trainer/clients/${params.id}/workout/${activeWorkout.id}/edit`}>
+                      <Link href={`/trainer/clients/${id}/workout/${activeWorkout.id}/edit`}>
                         <Button variant="outline">
                           <Edit className="mr-2 h-4 w-4" />
-                          Modifica
+                          Edit
                         </Button>
                       </Link>
                     </div>
@@ -267,30 +264,28 @@ export default async function ClientDetailPage({
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <p className="text-sm text-muted-foreground">Creata il</p>
+                        <p className="text-sm text-muted-foreground">Created on</p>
                         <p className="font-medium">
-                          {format(activeWorkout.dataCreazione, "dd MMMM yyyy", {
-                            locale: it,
-                          })}
+                          {format(activeWorkout.createdDate, "dd MMMM yyyy")}
                         </p>
                       </div>
-                      {activeWorkout.dataScadenza && (
+                      {activeWorkout.expiryDate && (
                         <div>
                           <p className="text-sm text-muted-foreground">
-                            Scadenza
+                            Expires in
                           </p>
                           <p className="font-medium">
                             {differenceInDays(
-                              activeWorkout.dataScadenza,
+                              activeWorkout.expiryDate,
                               new Date()
                             )}{" "}
-                            giorni rimanenti
+                            days remaining
                           </p>
                         </div>
                       )}
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Sessioni completate
+                          Sessions completed
                         </p>
                         <p className="font-medium">
                           {activeWorkout._count.workoutSessions}
@@ -302,7 +297,7 @@ export default async function ClientDetailPage({
 
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold">
-                    Esercizi ({activeWorkout.exercises.length})
+                    Exercises ({activeWorkout.exercises.length})
                   </h3>
                   {activeWorkout.exercises.map((exercise) => (
                     <ExerciseCard key={exercise.id} exercise={exercise} />
@@ -314,15 +309,15 @@ export default async function ClientDetailPage({
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Dumbbell className="h-16 w-16 text-muted-foreground mb-4" />
                   <h3 className="text-xl font-semibold mb-2">
-                    Nessuna scheda attiva
+                    No active workout
                   </h3>
                   <p className="text-muted-foreground text-center max-w-md mb-4">
-                    Questo cliente non ha ancora una scheda di allenamento attiva.
+                    This client doesn&apos;t have an active workout program yet.
                   </p>
-                  <Link href={`/trainer/clients/${params.id}/workout/new`}>
+                  <Link href={`/trainer/clients/${id}/workout/new`}>
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
-                      Crea Nuova Scheda
+                      Create New Workout
                     </Button>
                   </Link>
                 </CardContent>
@@ -333,10 +328,10 @@ export default async function ClientDetailPage({
           {/* Progress Tab */}
           <TabsContent value="progress" className="space-y-4">
             <div className="flex justify-end mb-4">
-              <Link href={`/trainer/clients/${params.id}/measurement/new`}>
+              <Link href={`/trainer/clients/${id}/measurement/new`}>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Nuova Misurazione
+                  New Measurement
                 </Button>
               </Link>
             </div>
@@ -344,23 +339,23 @@ export default async function ClientDetailPage({
             {client.measurements.length > 0 ? (
               <Tabs defaultValue="weight" className="space-y-4">
                 <TabsList>
-                  <TabsTrigger value="weight">Peso</TabsTrigger>
-                  <TabsTrigger value="body">Circonferenze</TabsTrigger>
-                  <TabsTrigger value="bodyfat">% Grasso</TabsTrigger>
-                  <TabsTrigger value="arms">Braccia/Gambe</TabsTrigger>
-                  <TabsTrigger value="table">Storico</TabsTrigger>
+                  <TabsTrigger value="weight">Weight</TabsTrigger>
+                  <TabsTrigger value="body">Measurements</TabsTrigger>
+                  <TabsTrigger value="bodyfat">Body Fat %</TabsTrigger>
+                  <TabsTrigger value="arms">Arms/Legs</TabsTrigger>
+                  <TabsTrigger value="table">History</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="weight">
                   {weightData.length > 0 ? (
                     <MultiLineChart
-                      title="Progressione Peso"
-                      description="Andamento del peso corporeo"
+                      title="Weight Progress"
+                      description="Body weight trend"
                       data={weightData}
                       lines={[
                         {
-                          dataKey: "peso",
-                          name: "Peso (kg)",
+                          dataKey: "weight",
+                          name: "Weight (kg)",
                           color: "hsl(var(--primary))",
                         },
                       ]}
@@ -369,7 +364,7 @@ export default async function ClientDetailPage({
                   ) : (
                     <Card>
                       <CardContent className="py-12 text-center text-muted-foreground">
-                        Nessun dato peso disponibile
+                        No weight data available
                       </CardContent>
                     </Card>
                   )}
@@ -378,20 +373,20 @@ export default async function ClientDetailPage({
                 <TabsContent value="body">
                   {bodyMeasurementsData.length > 0 ? (
                     <MultiLineChart
-                      title="Circonferenze Corporee"
-                      description="Andamento petto, vita e fianchi"
+                      title="Body Measurements"
+                      description="Chest, waist and hips trend"
                       data={bodyMeasurementsData}
                       lines={[
-                        { dataKey: "petto", name: "Petto (cm)", color: "#3b82f6" },
-                        { dataKey: "vita", name: "Vita (cm)", color: "#10b981" },
-                        { dataKey: "fianchi", name: "Fianchi (cm)", color: "#f59e0b" },
+                        { dataKey: "chest", name: "Chest (cm)", color: "#3b82f6" },
+                        { dataKey: "waist", name: "Waist (cm)", color: "#10b981" },
+                        { dataKey: "hips", name: "Hips (cm)", color: "#f59e0b" },
                       ]}
                       yAxisLabel="cm"
                     />
                   ) : (
                     <Card>
                       <CardContent className="py-12 text-center text-muted-foreground">
-                        Nessun dato circonferenze disponibile
+                        No body measurement data available
                       </CardContent>
                     </Card>
                   )}
@@ -400,13 +395,13 @@ export default async function ClientDetailPage({
                 <TabsContent value="bodyfat">
                   {bodyFatData.length > 0 ? (
                     <MultiLineChart
-                      title="Percentuale Grasso Corporeo"
-                      description="Andamento % grasso corporeo"
+                      title="Body Fat Percentage"
+                      description="Body fat % trend"
                       data={bodyFatData}
                       lines={[
                         {
-                          dataKey: "grasso",
-                          name: "% Grasso",
+                          dataKey: "fat",
+                          name: "Body Fat %",
                           color: "hsl(var(--primary))",
                         },
                       ]}
@@ -415,7 +410,7 @@ export default async function ClientDetailPage({
                   ) : (
                     <Card>
                       <CardContent className="py-12 text-center text-muted-foreground">
-                        Nessun dato % grasso disponibile
+                        No body fat data available
                       </CardContent>
                     </Card>
                   )}
@@ -424,21 +419,21 @@ export default async function ClientDetailPage({
                 <TabsContent value="arms">
                   {armsLegsData.length > 0 ? (
                     <MultiLineChart
-                      title="Braccia e Gambe"
-                      description="Andamento circonferenze braccia e gambe"
+                      title="Biceps and Quadriceps"
+                      description="Arms and legs measurements trend (weak side)"
                       data={armsLegsData}
                       lines={[
-                        { dataKey: "braccioSx", name: "Braccio Sx (cm)", color: "#3b82f6" },
-                        { dataKey: "braccioDx", name: "Braccio Dx (cm)", color: "#06b6d4" },
-                        { dataKey: "gambaSx", name: "Gamba Sx (cm)", color: "#10b981" },
-                        { dataKey: "gambaDx", name: "Gamba Dx (cm)", color: "#84cc16" },
+                        { dataKey: "bicepRelaxed", name: "Bicep Relaxed (cm)", color: "#3b82f6" },
+                        { dataKey: "bicepContracted", name: "Bicep Contracted (cm)", color: "#06b6d4" },
+                        { dataKey: "quadRelaxed", name: "Quad Relaxed (cm)", color: "#10b981" },
+                        { dataKey: "quadContracted", name: "Quad Contracted (cm)", color: "#84cc16" },
                       ]}
                       yAxisLabel="cm"
                     />
                   ) : (
                     <Card>
                       <CardContent className="py-12 text-center text-muted-foreground">
-                        Nessun dato braccia/gambe disponibile
+                        No arms/legs data available
                       </CardContent>
                     </Card>
                   )}
@@ -447,9 +442,9 @@ export default async function ClientDetailPage({
                 <TabsContent value="table">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Storico Misurazioni</CardTitle>
+                      <CardTitle>Measurement History</CardTitle>
                       <CardDescription>
-                        Tutte le misurazioni del cliente
+                        All client measurements
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -460,69 +455,79 @@ export default async function ClientDetailPage({
                             className="p-4 border rounded-lg"
                           >
                             <p className="font-medium mb-2">
-                              {format(measurement.data, "dd MMMM yyyy", {
-                                locale: it,
-                              })}
+                              {format(measurement.date, "dd MMMM yyyy")}
                             </p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                              {measurement.peso && (
+                              {measurement.weight && (
                                 <div>
-                                  <span className="text-muted-foreground">Peso:</span>{" "}
-                                  <span className="font-medium">{measurement.peso} kg</span>
+                                  <span className="text-muted-foreground">Weight:</span>{" "}
+                                  <span className="font-medium">{measurement.weight} kg</span>
                                 </div>
                               )}
-                              {measurement.percentualeGrasso && (
+                              {measurement.bodyFatPercentage && (
                                 <div>
-                                  <span className="text-muted-foreground">% Grasso:</span>{" "}
-                                  <span className="font-medium">{measurement.percentualeGrasso}%</span>
+                                  <span className="text-muted-foreground">Body Fat:</span>{" "}
+                                  <span className="font-medium">{measurement.bodyFatPercentage}%</span>
                                 </div>
                               )}
-                              {measurement.petto && (
+                              {measurement.chest && (
                                 <div>
-                                  <span className="text-muted-foreground">Petto:</span>{" "}
-                                  <span className="font-medium">{measurement.petto} cm</span>
+                                  <span className="text-muted-foreground">Chest:</span>{" "}
+                                  <span className="font-medium">{measurement.chest} cm</span>
                                 </div>
                               )}
-                              {measurement.vita && (
+                              {measurement.waist && (
                                 <div>
-                                  <span className="text-muted-foreground">Vita:</span>{" "}
-                                  <span className="font-medium">{measurement.vita} cm</span>
+                                  <span className="text-muted-foreground">Waist:</span>{" "}
+                                  <span className="font-medium">{measurement.waist} cm</span>
                                 </div>
                               )}
-                              {measurement.fianchi && (
+                              {measurement.hips && (
                                 <div>
-                                  <span className="text-muted-foreground">Fianchi:</span>{" "}
-                                  <span className="font-medium">{measurement.fianchi} cm</span>
+                                  <span className="text-muted-foreground">Hips:</span>{" "}
+                                  <span className="font-medium">{measurement.hips} cm</span>
                                 </div>
                               )}
-                              {measurement.braccioSx && (
+                              {measurement.shoulders && (
                                 <div>
-                                  <span className="text-muted-foreground">Braccio Sx:</span>{" "}
-                                  <span className="font-medium">{measurement.braccioSx} cm</span>
+                                  <span className="text-muted-foreground">Shoulders:</span>{" "}
+                                  <span className="font-medium">{measurement.shoulders} cm</span>
                                 </div>
                               )}
-                              {measurement.braccioDx && (
+                              {measurement.bicepRelaxed && (
                                 <div>
-                                  <span className="text-muted-foreground">Braccio Dx:</span>{" "}
-                                  <span className="font-medium">{measurement.braccioDx} cm</span>
+                                  <span className="text-muted-foreground">Bicep Relaxed:</span>{" "}
+                                  <span className="font-medium">{measurement.bicepRelaxed} cm</span>
                                 </div>
                               )}
-                              {measurement.gambaSx && (
+                              {measurement.bicepContracted && (
                                 <div>
-                                  <span className="text-muted-foreground">Gamba Sx:</span>{" "}
-                                  <span className="font-medium">{measurement.gambaSx} cm</span>
+                                  <span className="text-muted-foreground">Bicep Contracted:</span>{" "}
+                                  <span className="font-medium">{measurement.bicepContracted} cm</span>
                                 </div>
                               )}
-                              {measurement.gambaDx && (
+                              {measurement.quadRelaxed && (
                                 <div>
-                                  <span className="text-muted-foreground">Gamba Dx:</span>{" "}
-                                  <span className="font-medium">{measurement.gambaDx} cm</span>
+                                  <span className="text-muted-foreground">Quad Relaxed:</span>{" "}
+                                  <span className="font-medium">{measurement.quadRelaxed} cm</span>
+                                </div>
+                              )}
+                              {measurement.quadContracted && (
+                                <div>
+                                  <span className="text-muted-foreground">Quad Contracted:</span>{" "}
+                                  <span className="font-medium">{measurement.quadContracted} cm</span>
+                                </div>
+                              )}
+                              {measurement.calfContracted && (
+                                <div>
+                                  <span className="text-muted-foreground">Calf Contracted:</span>{" "}
+                                  <span className="font-medium">{measurement.calfContracted} cm</span>
                                 </div>
                               )}
                             </div>
-                            {measurement.note && (
+                            {measurement.notes && (
                               <p className="mt-2 text-sm text-muted-foreground">
-                                {measurement.note}
+                                {measurement.notes}
                               </p>
                             )}
                           </div>
@@ -535,7 +540,7 @@ export default async function ClientDetailPage({
             ) : (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Nessuna misurazione disponibile per questo cliente
+                  No measurements available for this client
                 </CardContent>
               </Card>
             )}
@@ -545,9 +550,9 @@ export default async function ClientDetailPage({
           <TabsContent value="feedback" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Feedback Allenamenti</CardTitle>
+                <CardTitle>Workout Feedback</CardTitle>
                 <CardDescription>
-                  Commenti e valutazioni delle sessioni
+                  Comments and ratings from sessions
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -556,33 +561,31 @@ export default async function ClientDetailPage({
                   <div className="space-y-4">
                     {client.workoutSessions
                       .filter((s) => s.feedback || s.rating)
-                      .map((session) => (
+                      .map((workoutSession) => (
                         <div
-                          key={session.id}
+                          key={workoutSession.id}
                           className="p-4 border rounded-lg space-y-2"
                         >
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-medium">{session.workout.nome}</p>
+                              <p className="font-medium">{workoutSession.workout.name}</p>
                               <p className="text-sm text-muted-foreground">
-                                {format(session.data, "dd MMMM yyyy 'alle' HH:mm", {
-                                  locale: it,
-                                })}
+                                {format(workoutSession.date, "dd MMMM yyyy 'at' HH:mm")}
                               </p>
                             </div>
-                            {session.rating && (
-                              <Badge>⭐ {session.rating}/5</Badge>
+                            {workoutSession.rating && (
+                              <Badge>{workoutSession.rating}/5</Badge>
                             )}
                           </div>
-                          {session.feedback && (
-                            <p className="text-sm">{session.feedback}</p>
+                          {workoutSession.feedback && (
+                            <p className="text-sm">{workoutSession.feedback}</p>
                           )}
                         </div>
                       ))}
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">
-                    Nessun feedback disponibile
+                    No feedback available
                   </p>
                 )}
               </CardContent>
@@ -593,15 +596,15 @@ export default async function ClientDetailPage({
           <TabsContent value="notes" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Note Private</CardTitle>
+                <CardTitle>Private Notes</CardTitle>
                 <CardDescription>
-                  Annotazioni visibili solo a te
+                  Notes visible only to you
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ClientNotes
-                  clientId={params.id}
-                  initialNotes={client.clientProfile?.note || ""}
+                  clientId={id}
+                  initialNotes={client.clientProfile?.notes || ""}
                 />
               </CardContent>
             </Card>

@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ClientEditForm } from "@/components/forms/ClientEditForm";
@@ -8,20 +7,21 @@ import { notFound } from "next/navigation";
 export default async function EditClientPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session || session.user.role !== "TRAINER") {
     return notFound();
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
+  const { id } = await params;
+  const userName = `${session.user.firstName} ${session.user.lastName}`;
 
-  // Recupera il cliente
+  // Fetch client
   const client = await prisma.user.findUnique({
     where: {
-      id: params.id,
+      id,
       role: "CLIENT",
     },
     include: {
@@ -34,29 +34,29 @@ export default async function EditClientPage({
   }
 
   const initialData = {
-    nome: client.nome,
-    cognome: client.cognome,
+    firstName: client.firstName,
+    lastName: client.lastName,
     email: client.email,
-    telefono: client.telefono,
-    obiettivi: client.clientProfile?.obiettivi || null,
+    phone: client.phone,
+    goals: client.clientProfile?.goals || null,
   };
 
   return (
     <div className="flex flex-col">
-      <Header userName={userName} title="Modifica Cliente" />
+      <Header userName={userName} title="Edit Client" />
 
       <div className="flex-1 p-6">
         <div className="max-w-3xl mx-auto">
           <div className="mb-6">
             <h2 className="text-2xl font-bold">
-              Modifica Dati di {client.nome} {client.cognome}
+              Edit {client.firstName} {client.lastName}&apos;s Data
             </h2>
             <p className="text-muted-foreground">
-              Aggiorna le informazioni personali e gli obiettivi del cliente
+              Update personal information and client goals
             </p>
           </div>
 
-          <ClientEditForm clientId={params.id} initialData={initialData} />
+          <ClientEditForm clientId={id} initialData={initialData} />
         </div>
       </div>
     </div>

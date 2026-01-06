@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { WorkoutEditor } from "@/components/workout/WorkoutEditor";
@@ -9,20 +8,21 @@ import { format } from "date-fns";
 export default async function EditWorkoutPage({
   params,
 }: {
-  params: { id: string; workoutId: string };
+  params: Promise<{ id: string; workoutId: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session || session.user.role !== "TRAINER") {
     return notFound();
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
+  const { id, workoutId } = await params;
+  const userName = `${session.user.firstName} ${session.user.lastName}`;
 
-  // Recupera il cliente con il profilo
+  // Fetch client with profile
   const client = await prisma.user.findUnique({
     where: {
-      id: params.id,
+      id,
       role: "CLIENT",
     },
     include: {
@@ -34,15 +34,15 @@ export default async function EditWorkoutPage({
     return notFound();
   }
 
-  // Recupera la scheda da modificare
+  // Fetch workout to edit
   const workout = await prisma.workout.findUnique({
     where: {
-      id: params.workoutId,
+      id: workoutId,
     },
     include: {
       exercises: {
         orderBy: {
-          ordine: "asc",
+          order: "asc",
         },
       },
     },
@@ -52,41 +52,41 @@ export default async function EditWorkoutPage({
     return notFound();
   }
 
-  // Prepara i dati per WorkoutEditor
+  // Prepare data for WorkoutEditor
   const initialData = {
     id: workout.id,
-    nome: workout.nome,
-    descrizione: workout.descrizione || "",
-    dataScadenza: workout.dataScadenza
-      ? format(workout.dataScadenza, "yyyy-MM-dd")
+    name: workout.name,
+    description: workout.description || "",
+    expiryDate: workout.expiryDate
+      ? format(workout.expiryDate, "yyyy-MM-dd")
       : "",
     exercises: workout.exercises.map((ex) => ({
-      nome: ex.nome,
-      serie: ex.serie,
-      ripetizioni: ex.ripetizioni,
-      peso: ex.peso || "",
-      recupero: ex.recupero || "",
-      note: ex.note || "",
+      name: ex.name,
+      sets: ex.sets,
+      reps: ex.reps,
+      weight: ex.weight || "",
+      rest: ex.rest || "",
+      notes: ex.notes || "",
       videoUrl: ex.videoUrl || "",
     })),
   };
 
   return (
     <div className="flex flex-col">
-      <Header userName={userName} title="Modifica Scheda" />
+      <Header userName={userName} title="Edit Workout" />
 
       <div className="flex-1 p-6">
         <div className="max-w-6xl mx-auto">
           <div className="mb-6">
             <h2 className="text-2xl font-bold">
-              Modifica Scheda per {client.nome} {client.cognome}
+              Edit Workout for {client.firstName} {client.lastName}
             </h2>
             <p className="text-muted-foreground">
-              Aggiorna gli esercizi e le informazioni della scheda
+              Update exercises and workout information
             </p>
           </div>
 
-          <WorkoutEditor clientId={params.id} initialData={initialData} />
+          <WorkoutEditor clientId={id} initialData={initialData} />
         </div>
       </div>
     </div>

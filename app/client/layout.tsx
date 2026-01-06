@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 export default async function ClientLayout({
@@ -8,7 +7,7 @@ export default async function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session) {
     redirect("/auth/signin");
@@ -18,11 +17,9 @@ export default async function ClientLayout({
     redirect("/trainer/dashboard");
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
-
   return (
     <div className="flex h-screen">
-      <Sidebar role="CLIENT" userName={userName} />
+      <Sidebar role="CLIENT" />
       <main className="flex-1 overflow-auto bg-background pt-16 lg:pt-0">
         {children}
       </main>

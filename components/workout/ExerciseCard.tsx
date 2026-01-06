@@ -4,14 +4,14 @@ import { Dumbbell, Clock, Weight } from "lucide-react";
 
 interface Exercise {
   id: string;
-  nome: string;
-  serie: number;
-  ripetizioni: string;
-  peso?: string;
-  recupero?: string;
-  note?: string;
-  videoUrl?: string;
-  ordine: number;
+  name: string;
+  sets: number;
+  reps: string;
+  weight?: string | null;
+  rest?: string | null;
+  notes?: string | null;
+  videoUrl?: string | null;
+  order: number;
 }
 
 interface ExerciseCardProps {
@@ -27,14 +27,14 @@ export function ExerciseCard({ exercise, showOrder = true }: ExerciseCardProps) 
           <div className="flex items-center gap-3">
             {showOrder && (
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                {exercise.ordine}
+                {exercise.order}
               </div>
             )}
             <div>
-              <CardTitle className="text-lg">{exercise.nome}</CardTitle>
-              {exercise.note && (
+              <CardTitle className="text-lg">{exercise.name}</CardTitle>
+              {exercise.notes && (
                 <CardDescription className="mt-1 text-xs">
-                  {exercise.note}
+                  {exercise.notes}
                 </CardDescription>
               )}
             </div>
@@ -51,29 +51,29 @@ export function ExerciseCard({ exercise, showOrder = true }: ExerciseCardProps) 
           <div className="flex items-center gap-2">
             <Dumbbell className="h-4 w-4 text-muted-foreground" />
             <div>
-              <p className="text-xs text-muted-foreground">Serie x Rip</p>
+              <p className="text-xs text-muted-foreground">Sets x Reps</p>
               <p className="text-sm font-semibold">
-                {exercise.serie} x {exercise.ripetizioni}
+                {exercise.sets} x {exercise.reps}
               </p>
             </div>
           </div>
 
-          {exercise.peso && (
+          {exercise.weight && (
             <div className="flex items-center gap-2">
               <Weight className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Peso</p>
-                <p className="text-sm font-semibold">{exercise.peso}</p>
+                <p className="text-xs text-muted-foreground">Weight</p>
+                <p className="text-sm font-semibold">{exercise.weight}</p>
               </div>
             </div>
           )}
 
-          {exercise.recupero && (
+          {exercise.rest && (
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Recupero</p>
-                <p className="text-sm font-semibold">{exercise.recupero}</p>
+                <p className="text-xs text-muted-foreground">Rest</p>
+                <p className="text-sm font-semibold">{exercise.rest}</p>
               </div>
             </div>
           )}

@@ -1,27 +1,26 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const clientId = params.id;
+    const { id: clientId } = await params;
 
-    // I clienti possono vedere solo i propri dati
+    // Clients can only view their own data
     if (
       session.user.role === "CLIENT" &&
       session.user.id !== clientId
     ) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const client = await prisma.user.findUnique({
@@ -36,7 +35,7 @@ export async function GET(
               include: {
                 exercises: {
                   orderBy: {
-                    ordine: "asc",
+                    order: "asc",
                   },
                 },
               },
@@ -48,12 +47,12 @@ export async function GET(
             workout: true,
           },
           orderBy: {
-            data: "desc",
+            date: "desc",
           },
         },
         measurements: {
           orderBy: {
-            data: "desc",
+            date: "desc",
           },
         },
       },
@@ -61,19 +60,19 @@ export async function GET(
 
     if (!client) {
       return NextResponse.json(
-        { error: "Cliente non trovato" },
+        { error: "Client not found" },
         { status: 404 }
       );
     }
 
-    // Rimuovi password dalla risposta
+    // Remove password from response
     const { password: _, ...clientWithoutPassword } = client;
 
     return NextResponse.json(clientWithoutPassword);
   } catch (error) {
-    console.error("Errore nel recuperare il cliente:", error);
+    console.error("Error fetching client:", error);
     return NextResponse.json(
-      { error: "Errore nel recuperare il cliente" },
+      { error: "Error fetching client" },
       { status: 500 }
     );
   }
@@ -81,37 +80,37 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Solo i trainer possono modificare i dati dei clienti
+    // Only trainers can modify client data
     if (session.user.role !== "TRAINER") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const clientId = params.id;
+    const { id: clientId } = await params;
     const body = await request.json();
-    const { nome, cognome, telefono, obiettivi, note, scadenzaScheda } = body;
+    const { firstName, lastName, phone, goals, notes, cardExpiryDate } = body;
 
     const updatedClient = await prisma.user.update({
       where: {
         id: clientId,
       },
       data: {
-        nome,
-        cognome,
-        telefono,
+        firstName,
+        lastName,
+        phone,
         clientProfile: {
           update: {
-            obiettivi,
-            note,
-            scadenzaScheda: scadenzaScheda ? new Date(scadenzaScheda) : undefined,
+            goals,
+            notes,
+            cardExpiryDate: cardExpiryDate ? new Date(cardExpiryDate) : undefined,
           },
         },
       },
@@ -124,9 +123,9 @@ export async function PUT(
 
     return NextResponse.json(clientWithoutPassword);
   } catch (error) {
-    console.error("Errore nell'aggiornare il cliente:", error);
+    console.error("Error updating client:", error);
     return NextResponse.json(
-      { error: "Errore nell'aggiornare il cliente" },
+      { error: "Error updating client" },
       { status: 500 }
     );
   }

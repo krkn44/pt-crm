@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ClientCard } from "@/components/client/ClientCard";
@@ -14,18 +13,19 @@ import Link from "next/link";
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: { search?: string };
+  searchParams: Promise<{ search?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session) {
     return null;
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
-  const searchQuery = searchParams.search?.toLowerCase() || "";
+  const resolvedSearchParams = await searchParams;
+  const userName = `${session.user.firstName} ${session.user.lastName}`;
+  const searchQuery = resolvedSearchParams.search?.toLowerCase() || "";
 
-  // Recupera tutti i clienti con le loro informazioni
+  // Fetch all clients with their information
   const clients = await prisma.user.findMany({
     where: {
       role: "CLIENT",
@@ -34,7 +34,7 @@ export default async function ClientsPage({
       clientProfile: true,
       workoutSessions: {
         orderBy: {
-          data: "desc",
+          date: "desc",
         },
         take: 1,
       },
@@ -46,13 +46,13 @@ export default async function ClientsPage({
       },
     },
     orderBy: {
-      nome: "asc",
+      firstName: "asc",
     },
   });
 
-  // Calcola lo stato di ogni cliente
+  // Calculate status for each client
   const clientsWithStatus = clients.map((client) => {
-    const lastSession = client.workoutSessions[0]?.data;
+    const lastSession = client.workoutSessions[0]?.date;
     let status: "active" | "warning" | "inactive" = "active";
 
     if (lastSession) {
@@ -66,10 +66,10 @@ export default async function ClientsPage({
       status = "inactive";
     }
 
-    // Controlla anche la scadenza della scheda
-    if (client.clientProfile?.scadenzaScheda) {
+    // Check card expiry date too
+    if (client.clientProfile?.cardExpiryDate) {
       const daysToExpiry = differenceInDays(
-        client.clientProfile.scadenzaScheda,
+        client.clientProfile.cardExpiryDate,
         new Date()
       );
       if (daysToExpiry <= 7 && status === "active") {
@@ -84,16 +84,16 @@ export default async function ClientsPage({
     };
   });
 
-  // Filtra clienti per ricerca
+  // Filter clients by search
   const filteredClients = searchQuery
     ? clientsWithStatus.filter((c) => {
-        const fullName = `${c.nome} ${c.cognome}`.toLowerCase();
+        const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
         const email = c.email.toLowerCase();
         return fullName.includes(searchQuery) || email.includes(searchQuery);
       })
     : clientsWithStatus;
 
-  // Filtra clienti per stato
+  // Filter clients by status
   const activeClients = filteredClients.filter((c) => c.status === "active");
   const warningClients = filteredClients.filter((c) => c.status === "warning");
   const inactiveClients = filteredClients.filter(
@@ -102,22 +102,22 @@ export default async function ClientsPage({
 
   return (
     <div className="flex flex-col">
-      <Header userName={userName} title="Gestione Clienti" />
+      <Header userName={userName} title="Client Management" />
 
       <div className="flex-1 space-y-6 p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">I Tuoi Clienti</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Your Clients</h2>
             <p className="text-muted-foreground">
               {searchQuery
-                ? `${filteredClients.length} di ${clients.length} client${clients.length !== 1 ? "i" : "e"}`
-                : `${clients.length} client${clients.length !== 1 ? "i" : "e"} totali`}
+                ? `${filteredClients.length} of ${clients.length} client${clients.length !== 1 ? "s" : ""}`
+                : `${clients.length} total client${clients.length !== 1 ? "s" : ""}`}
             </p>
           </div>
           <Link href="/trainer/clients/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Nuovo Cliente
+              New Client
             </Button>
           </Link>
         </div>
@@ -135,7 +135,7 @@ export default async function ClientsPage({
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{activeClients.length}</p>
-                  <p className="text-sm text-muted-foreground">Clienti Attivi</p>
+                  <p className="text-sm text-muted-foreground">Active Clients</p>
                 </div>
               </div>
             </CardContent>
@@ -150,7 +150,7 @@ export default async function ClientsPage({
                 <div>
                   <p className="text-2xl font-bold">{warningClients.length}</p>
                   <p className="text-sm text-muted-foreground">
-                    Richiedono Attenzione
+                    Need Attention
                   </p>
                 </div>
               </div>
@@ -165,7 +165,7 @@ export default async function ClientsPage({
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{inactiveClients.length}</p>
-                  <p className="text-sm text-muted-foreground">Inattivi</p>
+                  <p className="text-sm text-muted-foreground">Inactive</p>
                 </div>
               </div>
             </CardContent>
@@ -176,16 +176,16 @@ export default async function ClientsPage({
         <Tabs defaultValue="all" className="space-y-4">
           <TabsList>
             <TabsTrigger value="all">
-              Tutti ({filteredClients.length})
+              All ({filteredClients.length})
             </TabsTrigger>
             <TabsTrigger value="active">
-              Attivi ({activeClients.length})
+              Active ({activeClients.length})
             </TabsTrigger>
             <TabsTrigger value="warning">
-              Attenzione ({warningClients.length})
+              Warning ({warningClients.length})
             </TabsTrigger>
             <TabsTrigger value="inactive">
-              Inattivi ({inactiveClients.length})
+              Inactive ({inactiveClients.length})
             </TabsTrigger>
           </TabsList>
 
@@ -204,16 +204,16 @@ export default async function ClientsPage({
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Users className="h-16 w-16 text-muted-foreground mb-4" />
                   <h3 className="text-xl font-semibold mb-2">
-                    Nessun cliente
+                    No clients
                   </h3>
                   <p className="text-muted-foreground text-center max-w-md mb-4">
-                    Non hai ancora clienti registrati. Inizia aggiungendo il tuo
-                    primo cliente.
+                    You don&apos;t have any registered clients yet. Start by adding your
+                    first client.
                   </p>
                   <Link href="/trainer/clients/new">
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
-                      Aggiungi Cliente
+                      Add Client
                     </Button>
                   </Link>
                 </CardContent>
@@ -234,7 +234,7 @@ export default async function ClientsPage({
             ) : (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Nessun cliente attivo
+                  No active clients
                 </CardContent>
               </Card>
             )}
@@ -253,7 +253,7 @@ export default async function ClientsPage({
             ) : (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Nessun cliente richiede attenzione
+                  No clients need attention
                 </CardContent>
               </Card>
             )}
@@ -272,7 +272,7 @@ export default async function ClientsPage({
             ) : (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Nessun cliente inattivo
+                  No inactive clients
                 </CardContent>
               </Card>
             )}

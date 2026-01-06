@@ -1,9 +1,10 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { Resend } from "resend";
+import { headers } from "next/headers";
 import { prisma } from "./prisma";
 
-// Inizializza Resend (verrà usato quando aggiungerai le API keys)
+// Initialize Resend (will be used when you add API keys)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export const auth = betterAuth({
@@ -12,7 +13,36 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Impostiamo a true quando Resend sarà configurato
+    requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }: { user: { email: string; name?: string | null }; url: string }) => {
+      if (!resend) {
+        console.log("Resend not configured. Reset URL:", url);
+        return;
+      }
+
+      try {
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM || "noreply@ptcrm.app",
+          to: user.email,
+          subject: "Reset your PT CRM password",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #333;">Reset Password</h1>
+              <p>Hi ${user.name || "there"},</p>
+              <p>You requested to reset your password. Click the link below:</p>
+              <a href="${url}" style="display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+                Reset Password
+              </a>
+              <p>This link will expire in 1 hour.</p>
+              <p>If you did not request the reset, please ignore this email.</p>
+              <p>Thanks,<br>The PT CRM Team</p>
+            </div>
+          `,
+        });
+      } catch (error) {
+        console.error("Error sending reset password email:", error);
+      }
+    },
   },
   user: {
     additionalFields: {
@@ -20,18 +50,35 @@ export const auth = betterAuth({
         type: "string",
         required: true,
         defaultValue: "CLIENT",
+        // Make role available in session
+        input: false,
+        output: true,
       },
-      telefono: {
+      firstName: {
         type: "string",
         required: false,
+        input: true,
+        output: true,
+      },
+      lastName: {
+        type: "string",
+        required: false,
+        input: true,
+        output: true,
+      },
+      phone: {
+        type: "string",
+        required: false,
+        input: false,
+        output: true,
       },
     },
   },
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 giorni
-    updateAge: 60 * 60 * 24, // aggiorna ogni 24 ore
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24, // update every 24 hours
   },
-  // Email configuration con Resend
+  // Email configuration with Resend
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       if (!resend) {
@@ -43,54 +90,22 @@ export const auth = betterAuth({
         await resend.emails.send({
           from: process.env.EMAIL_FROM || "noreply@ptcrm.app",
           to: user.email,
-          subject: "Verifica il tuo account PT CRM",
+          subject: "Verify your PT CRM account",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #333;">Benvenuto in PT CRM!</h1>
-              <p>Ciao ${user.name},</p>
-              <p>Clicca sul link qui sotto per verificare il tuo account:</p>
+              <h1 style="color: #333;">Welcome to PT CRM!</h1>
+              <p>Hi ${user.name},</p>
+              <p>Click the link below to verify your account:</p>
               <a href="${url}" style="display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-                Verifica Account
+                Verify Account
               </a>
-              <p>Se non hai richiesto questa registrazione, ignora questa email.</p>
-              <p>Grazie,<br>Il team PT CRM</p>
+              <p>If you did not request this registration, please ignore this email.</p>
+              <p>Thanks,<br>The PT CRM Team</p>
             </div>
           `,
         });
       } catch (error) {
         console.error("Error sending verification email:", error);
-      }
-    },
-  },
-  // Password reset con Resend
-  resetPassword: {
-    sendResetPasswordEmail: async ({ user, url }) => {
-      if (!resend) {
-        console.log("Resend not configured. Reset URL:", url);
-        return;
-      }
-
-      try {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM || "noreply@ptcrm.app",
-          to: user.email,
-          subject: "Reset password PT CRM",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #333;">Reset Password</h1>
-              <p>Ciao ${user.name},</p>
-              <p>Hai richiesto di reimpostare la password. Clicca sul link qui sotto:</p>
-              <a href="${url}" style="display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-                Reset Password
-              </a>
-              <p>Questo link scadrà tra 1 ora.</p>
-              <p>Se non hai richiesto il reset, ignora questa email.</p>
-              <p>Grazie,<br>Il team PT CRM</p>
-            </div>
-          `,
-        });
-      } catch (error) {
-        console.error("Error sending reset password email:", error);
       }
     },
   },
@@ -100,3 +115,14 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
+
+/**
+ * Helper to get session on server side (Server Components, API Routes)
+ * Replaces getServerSession(authOptions) from NextAuth
+ */
+export async function getSession() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  return session;
+}

@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// GET /api/clients - Recupera tutti i clienti (solo trainer)
+// GET /api/clients - Get all clients (trainer only)
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Solo i trainer possono vedere la lista clienti
+    // Only trainers can view the client list
     if (session.user.role !== "TRAINER") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const clients = await prisma.user.findMany({
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
         clientProfile: true,
         workoutSessions: {
           orderBy: {
-            data: "desc",
+            date: "desc",
           },
           take: 1,
         },
@@ -38,52 +37,52 @@ export async function GET(request: Request) {
         },
       },
       orderBy: {
-        nome: "asc",
+        firstName: "asc",
       },
     });
 
     return NextResponse.json(clients);
   } catch (error) {
-    console.error("Errore nel recuperare i clienti:", error);
+    console.error("Error fetching clients:", error);
     return NextResponse.json(
-      { error: "Errore nel recuperare i clienti" },
+      { error: "Error fetching clients" },
       { status: 500 }
     );
   }
 }
 
-// POST /api/clients - Crea un nuovo cliente (solo trainer)
+// POST /api/clients - Create a new client (trainer only)
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (session.user.role !== "TRAINER") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { email, password, nome, cognome, telefono, obiettivi, note } = body;
+    const { email, password, firstName, lastName, phone, goals, notes } = body;
 
-    // Validazione base
-    if (!email || !password || !nome || !cognome) {
+    // Basic validation
+    if (!email || !password || !firstName || !lastName) {
       return NextResponse.json(
-        { error: "Email, password, nome e cognome sono obbligatori" },
+        { error: "Email, password, first name and last name are required" },
         { status: 400 }
       );
     }
 
-    // Verifica se l'email esiste già
+    // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Email già esistente" },
+        { error: "Email already exists" },
         { status: 409 }
       );
     }
@@ -91,19 +90,19 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crea utente con profilo cliente
+    // Create user with client profile
     const client = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        nome,
-        cognome,
-        telefono,
+        firstName,
+        lastName,
+        phone,
         role: "CLIENT",
         clientProfile: {
           create: {
-            obiettivi,
-            note,
+            goals,
+            notes,
           },
         },
       },
@@ -112,14 +111,14 @@ export async function POST(request: Request) {
       },
     });
 
-    // Rimuovi password dalla risposta
+    // Remove password from response
     const { password: _, ...clientWithoutPassword } = client;
 
     return NextResponse.json(clientWithoutPassword, { status: 201 });
   } catch (error) {
-    console.error("Errore nella creazione del cliente:", error);
+    console.error("Error creating client:", error);
     return NextResponse.json(
-      { error: "Errore nella creazione del cliente" },
+      { error: "Error creating client" },
       { status: 500 }
     );
   }

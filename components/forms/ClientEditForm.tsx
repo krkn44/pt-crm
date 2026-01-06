@@ -12,20 +12,20 @@ import { Loader2 } from "lucide-react";
 interface ClientEditFormProps {
   clientId: string;
   initialData: {
-    nome: string;
-    cognome: string;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
-    telefono: string | null;
-    obiettivi: string | null;
+    phone: string | null;
+    goals: string | null;
   };
 }
 
 export function ClientEditForm({ clientId, initialData }: ClientEditFormProps) {
   const [formData, setFormData] = useState({
-    nome: initialData.nome,
-    cognome: initialData.cognome,
-    telefono: initialData.telefono || "",
-    obiettivi: initialData.obiettivi || "",
+    firstName: initialData.firstName || "",
+    lastName: initialData.lastName || "",
+    phone: initialData.phone || "",
+    goals: initialData.goals || "",
   });
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
@@ -44,15 +44,15 @@ export function ClientEditForm({ clientId, initialData }: ClientEditFormProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Errore nel salvare i dati");
+        throw new Error("Error saving data");
       }
 
-      // Torna alla pagina del cliente
+      // Return to client page
       router.push(`/trainer/clients/${clientId}`);
       router.refresh();
     } catch (error) {
-      console.error("Errore:", error);
-      alert("Errore nel salvare i dati");
+      console.error("Error:", error);
+      alert("Error saving data");
       setIsSaving(false);
     }
   };
@@ -61,31 +61,31 @@ export function ClientEditForm({ clientId, initialData }: ClientEditFormProps) {
     <form onSubmit={handleSubmit}>
       <Card>
         <CardHeader>
-          <CardTitle>Informazioni Cliente</CardTitle>
+          <CardTitle>Client Information</CardTitle>
           <CardDescription>
-            Modifica i dati personali e gli obiettivi del cliente
+            Edit personal information and client goals
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
+              <Label htmlFor="firstName">First Name *</Label>
               <Input
-                id="nome"
-                value={formData.nome}
+                id="firstName"
+                value={formData.firstName}
                 onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
+                  setFormData({ ...formData, firstName: e.target.value })
                 }
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cognome">Cognome *</Label>
+              <Label htmlFor="lastName">Last Name *</Label>
               <Input
-                id="cognome"
-                value={formData.cognome}
+                id="lastName"
+                value={formData.lastName}
                 onChange={(e) =>
-                  setFormData({ ...formData, cognome: e.target.value })
+                  setFormData({ ...formData, lastName: e.target.value })
                 }
                 required
               />
@@ -102,32 +102,32 @@ export function ClientEditForm({ clientId, initialData }: ClientEditFormProps) {
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              L&apos;email non può essere modificata
+              Email cannot be modified
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="telefono">Telefono</Label>
+            <Label htmlFor="phone">Phone</Label>
             <Input
-              id="telefono"
+              id="phone"
               type="tel"
-              value={formData.telefono}
+              value={formData.phone}
               onChange={(e) =>
-                setFormData({ ...formData, telefono: e.target.value })
+                setFormData({ ...formData, phone: e.target.value })
               }
-              placeholder="+39 123 456 7890"
+              placeholder="+1 123 456 7890"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="obiettivi">Obiettivi</Label>
+            <Label htmlFor="goals">Goals</Label>
             <Textarea
-              id="obiettivi"
-              value={formData.obiettivi}
+              id="goals"
+              value={formData.goals}
               onChange={(e) =>
-                setFormData({ ...formData, obiettivi: e.target.value })
+                setFormData({ ...formData, goals: e.target.value })
               }
-              placeholder="Descrivi gli obiettivi del cliente..."
+              placeholder="Describe the client's goals..."
               className="min-h-[120px]"
             />
           </div>
@@ -137,10 +137,10 @@ export function ClientEditForm({ clientId, initialData }: ClientEditFormProps) {
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvataggio...
+                  Saving...
                 </>
               ) : (
-                "Salva Modifiche"
+                "Save Changes"
               )}
             </Button>
             <Button
@@ -149,7 +149,7 @@ export function ClientEditForm({ clientId, initialData }: ClientEditFormProps) {
               onClick={() => router.back()}
               disabled={isSaving}
             >
-              Annulla
+              Cancel
             </Button>
           </div>
         </CardContent>

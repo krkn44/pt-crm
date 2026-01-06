@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -10,115 +9,115 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Calendar, Star, TrendingUp } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { it } from "date-fns/locale";
 
 const ITEMS_PER_PAGE = 20;
 
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: { page?: string; dateFrom?: string; dateTo?: string };
+  searchParams: Promise<{ page?: string; dateFrom?: string; dateTo?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session) {
     return null;
   }
 
-  const userName = `${session.user.nome} ${session.user.cognome}`;
-  const currentPage = Number(searchParams.page) || 1;
+  const resolvedSearchParams = await searchParams;
+  const userName = `${session.user.firstName} ${session.user.lastName}`;
+  const currentPage = Number(resolvedSearchParams.page) || 1;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // Prepara filtri per data
+  // Prepare date filters
   const dateFilter: any = {};
-  if (searchParams.dateFrom) {
-    dateFilter.gte = new Date(searchParams.dateFrom);
+  if (resolvedSearchParams.dateFrom) {
+    dateFilter.gte = new Date(resolvedSearchParams.dateFrom);
   }
-  if (searchParams.dateTo) {
-    const dateTo = new Date(searchParams.dateTo);
-    dateTo.setHours(23, 59, 59, 999); // Fine giornata
+  if (resolvedSearchParams.dateTo) {
+    const dateTo = new Date(resolvedSearchParams.dateTo);
+    dateTo.setHours(23, 59, 59, 999); // End of day
     dateFilter.lte = dateTo;
   }
 
   const whereClause = Object.keys(dateFilter).length > 0
-    ? { data: dateFilter }
+    ? { date: dateFilter }
     : {};
 
-  // Recupera tutti i clienti
+  // Fetch all clients
   const clients = await prisma.user.findMany({
     where: { role: "CLIENT" },
     select: {
       id: true,
-      nome: true,
-      cognome: true,
+      firstName: true,
+      lastName: true,
     },
   });
 
-  // Count totale sessioni (per paginazione e stats)
+  // Total sessions count (for pagination and stats)
   const totalSessions = await prisma.workoutSession.count({
     where: whereClause,
   });
 
-  // Recupera sessioni paginate con filtri
+  // Fetch paginated sessions with filters
   const paginatedSessions = await prisma.workoutSession.findMany({
     where: whereClause,
     include: {
       client: {
         select: {
           id: true,
-          nome: true,
-          cognome: true,
+          firstName: true,
+          lastName: true,
         },
       },
       workout: {
         select: {
-          nome: true,
+          name: true,
         },
       },
     },
     orderBy: {
-      data: "desc",
+      date: "desc",
     },
     skip,
     take: ITEMS_PER_PAGE,
   });
 
-  // Recupera tutte le sessioni per le statistiche (senza paginazione)
+  // Fetch all sessions for statistics (without pagination)
   const allSessionsForStats = await prisma.workoutSession.findMany({
     where: whereClause,
     select: {
       id: true,
-      data: true,
-      completato: true,
+      date: true,
+      completed: true,
       feedback: true,
       rating: true,
       clientId: true,
     },
   });
 
-  // Sessioni di questa settimana
-  const thisWeekStart = startOfWeek(new Date(), { locale: it });
-  const thisWeekEnd = endOfWeek(new Date(), { locale: it });
+  // Sessions this week
+  const thisWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const thisWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
   const thisWeekSessions = allSessionsForStats.filter(
-    (s) => s.data >= thisWeekStart && s.data <= thisWeekEnd
+    (s) => s.date >= thisWeekStart && s.date <= thisWeekEnd
   );
 
-  // Sessioni di questo mese
+  // Sessions this month
   const thisMonthStart = startOfMonth(new Date());
   const thisMonthEnd = endOfMonth(new Date());
   const thisMonthSessions = allSessionsForStats.filter(
-    (s) => s.data >= thisMonthStart && s.data <= thisMonthEnd
+    (s) => s.date >= thisMonthStart && s.date <= thisMonthEnd
   );
 
-  // Calcola statistiche
-  const completedSessions = allSessionsForStats.filter((s) => s.completato).length;
+  // Calculate statistics
+  const completedSessions = allSessionsForStats.filter((s) => s.completed).length;
   const sessionsWithFeedback = allSessionsForStats.filter((s) => s.feedback || s.rating).length;
   const averageRating = allSessionsForStats.filter((s) => s.rating).length > 0
     ? (allSessionsForStats.reduce((sum, s) => sum + (s.rating || 0), 0) /
         allSessionsForStats.filter((s) => s.rating).length).toFixed(1)
     : "N/A";
 
-  // Count per feedback tab (con filtri)
+  // Count for feedback tab (with filters)
   const totalFeedbackCount = await prisma.workoutSession.count({
     where: {
       ...whereClause,
@@ -129,7 +128,7 @@ export default async function AnalyticsPage({
     },
   });
 
-  // Sessioni con feedback paginate
+  // Paginated sessions with feedback
   const paginatedFeedback = await prisma.workoutSession.findMany({
     where: {
       ...whereClause,
@@ -142,24 +141,24 @@ export default async function AnalyticsPage({
       client: {
         select: {
           id: true,
-          nome: true,
-          cognome: true,
+          firstName: true,
+          lastName: true,
         },
       },
       workout: {
         select: {
-          nome: true,
+          name: true,
         },
       },
     },
     orderBy: {
-      data: "desc",
+      date: "desc",
     },
     skip,
     take: ITEMS_PER_PAGE,
   });
 
-  // Count per feedback negativi
+  // Count for negative feedback
   const totalNegativeFeedbackCount = await prisma.workoutSession.count({
     where: {
       ...whereClause,
@@ -167,7 +166,7 @@ export default async function AnalyticsPage({
     },
   });
 
-  // Feedback negativi paginati
+  // Paginated negative feedback
   const paginatedNegativeFeedback = await prisma.workoutSession.findMany({
     where: {
       ...whereClause,
@@ -177,24 +176,24 @@ export default async function AnalyticsPage({
       client: {
         select: {
           id: true,
-          nome: true,
-          cognome: true,
+          firstName: true,
+          lastName: true,
         },
       },
       workout: {
         select: {
-          nome: true,
+          name: true,
         },
       },
     },
     orderBy: {
-      data: "desc",
+      date: "desc",
     },
     skip,
     take: ITEMS_PER_PAGE,
   });
 
-  // Sessioni per cliente (senza paginazione, mostriamo tutti)
+  // Sessions per client (without pagination, show all)
   const sessionsByClient = await Promise.all(
     clients.map(async (client) => {
       const clientSessions = await prisma.workoutSession.findMany({
@@ -204,18 +203,18 @@ export default async function AnalyticsPage({
         },
         select: {
           id: true,
-          data: true,
+          date: true,
           rating: true,
         },
         orderBy: {
-          data: "desc",
+          date: "desc",
         },
       });
 
       return {
         client,
         count: clientSessions.length,
-        lastSession: clientSessions[0]?.data,
+        lastSession: clientSessions[0]?.date,
         averageRating: clientSessions.filter((s) => s.rating).length > 0
           ? (clientSessions.reduce((sum, s) => sum + (s.rating || 0), 0) /
               clientSessions.filter((s) => s.rating).length).toFixed(1)
@@ -239,105 +238,103 @@ export default async function AnalyticsPage({
       <div className="flex-1 space-y-6 p-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">
-            Analytics e Statistiche
+            Analytics & Statistics
           </h2>
           <p className="text-muted-foreground">
-            Panoramica completa delle sessioni e feedback dei clienti
+            Complete overview of sessions and client feedback
           </p>
         </div>
 
-        {/* Filtri per data */}
+        {/* Date Filters */}
         <DateFilter />
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
-            title="Sessioni Totali"
+            title="Total Sessions"
             value={totalSessions}
-            description={`${completedSessions} completate`}
+            description={`${completedSessions} completed`}
             icon={BarChart3}
           />
           <StatsCard
-            title="Questa Settimana"
+            title="This Week"
             value={thisWeekSessions.length}
-            description={`${Math.round((thisWeekSessions.length / 7))} media al giorno`}
+            description={`${Math.round((thisWeekSessions.length / 7))} avg per day`}
             icon={Calendar}
           />
           <StatsCard
-            title="Questo Mese"
+            title="This Month"
             value={thisMonthSessions.length}
-            description={`${clients.length} clienti`}
+            description={`${clients.length} clients`}
             icon={TrendingUp}
           />
           <StatsCard
-            title="Rating Medio"
+            title="Average Rating"
             value={averageRating}
-            description={`${sessionsWithFeedback} con feedback`}
+            description={`${sessionsWithFeedback} with feedback`}
             icon={Star}
           />
         </div>
 
-        {/* Tabs per diverse viste */}
+        {/* Tabs for different views */}
         <Tabs defaultValue="sessions" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="sessions">Sessioni Recenti</TabsTrigger>
-            <TabsTrigger value="feedback">Tutti i Feedback</TabsTrigger>
-            <TabsTrigger value="clients">Per Cliente</TabsTrigger>
-            <TabsTrigger value="negative">Feedback Negativi</TabsTrigger>
+            <TabsTrigger value="sessions">Recent Sessions</TabsTrigger>
+            <TabsTrigger value="feedback">All Feedback</TabsTrigger>
+            <TabsTrigger value="clients">By Client</TabsTrigger>
+            <TabsTrigger value="negative">Negative Feedback</TabsTrigger>
           </TabsList>
 
-          {/* Sessioni Recenti */}
+          {/* Recent Sessions */}
           <TabsContent value="sessions" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Sessioni Recenti</CardTitle>
+                <CardTitle>Recent Sessions</CardTitle>
                 <CardDescription>
                   {totalSessions > 0
-                    ? `${totalSessions} session${totalSessions !== 1 ? "i" : "e"} totali`
-                    : "Nessuna sessione"}
+                    ? `${totalSessions} total session${totalSessions !== 1 ? "s" : ""}`
+                    : "No sessions"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {paginatedSessions.length > 0 ? (
                   <>
                     <div className="space-y-3">
-                      {paginatedSessions.map((session) => (
+                      {paginatedSessions.map((workoutSession) => (
                         <div
-                          key={session.id}
+                          key={workoutSession.id}
                           className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-medium">
-                                {session.client.nome} {session.client.cognome}
+                                {workoutSession.client.firstName} {workoutSession.client.lastName}
                               </p>
-                              {session.completato && (
+                              {workoutSession.completed && (
                                 <Badge variant="outline" className="text-xs">
-                                  Completato
+                                  Completed
                                 </Badge>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {session.workout.nome}
+                              {workoutSession.workout.name}
                             </p>
                             <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                               <span>
-                                {format(session.data, "dd MMMM yyyy 'alle' HH:mm", {
-                                  locale: it,
-                                })}
+                                {format(workoutSession.date, "dd MMMM yyyy 'at' HH:mm")}
                               </span>
-                              {session.durata && <span>• {session.durata} min</span>}
+                              {workoutSession.duration && <span>• {workoutSession.duration} min</span>}
                             </div>
-                            {session.feedback && (
+                            {workoutSession.feedback && (
                               <p className="mt-2 text-sm italic">
-                                "{session.feedback}"
+                                &quot;{workoutSession.feedback}&quot;
                               </p>
                             )}
                           </div>
-                          {session.rating && (
+                          {workoutSession.rating && (
                             <div className="flex items-center gap-1 ml-4">
                               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              <span className="font-semibold">{session.rating}/5</span>
+                              <span className="font-semibold">{workoutSession.rating}/5</span>
                             </div>
                           )}
                         </div>
@@ -352,54 +349,54 @@ export default async function AnalyticsPage({
                   </>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">
-                    Nessuna sessione registrata
+                    No sessions recorded
                   </p>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Tutti i Feedback */}
+          {/* All Feedback */}
           <TabsContent value="feedback" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Feedback Ricevuti</CardTitle>
+                <CardTitle>Received Feedback</CardTitle>
                 <CardDescription>
                   {totalFeedbackCount > 0
-                    ? `${totalFeedbackCount} feedback totali`
-                    : "Nessun feedback"}
+                    ? `${totalFeedbackCount} total feedback`
+                    : "No feedback"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {paginatedFeedback.length > 0 ? (
                   <>
                     <div className="space-y-3">
-                      {paginatedFeedback.map((session) => (
+                      {paginatedFeedback.map((workoutSession) => (
                         <div
-                          key={session.id}
+                          key={workoutSession.id}
                           className="p-4 border rounded-lg"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <p className="font-medium">
-                                {session.client.nome} {session.client.cognome}
+                                {workoutSession.client.firstName} {workoutSession.client.lastName}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {session.workout.nome} •{" "}
-                                {format(session.data, "dd MMM yyyy", { locale: it })}
+                                {workoutSession.workout.name} •{" "}
+                                {format(workoutSession.date, "dd MMM yyyy")}
                               </p>
                             </div>
-                            {session.rating && (
+                            {workoutSession.rating && (
                               <Badge
-                                variant={session.rating >= 4 ? "default" : session.rating === 3 ? "secondary" : "destructive"}
+                                variant={workoutSession.rating >= 4 ? "default" : workoutSession.rating === 3 ? "secondary" : "destructive"}
                               >
-                                ⭐ {session.rating}/5
+                                {workoutSession.rating}/5
                               </Badge>
                             )}
                           </div>
-                          {session.feedback && (
+                          {workoutSession.feedback && (
                             <p className="text-sm mt-2 p-3 bg-secondary/50 rounded">
-                              {session.feedback}
+                              {workoutSession.feedback}
                             </p>
                           )}
                         </div>
@@ -414,20 +411,20 @@ export default async function AnalyticsPage({
                   </>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">
-                    Nessun feedback disponibile
+                    No feedback available
                   </p>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Per Cliente */}
+          {/* By Client */}
           <TabsContent value="clients" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Statistiche per Cliente</CardTitle>
+                <CardTitle>Statistics by Client</CardTitle>
                 <CardDescription>
-                  Riepilogo sessioni e rating per ogni cliente
+                  Sessions and rating summary for each client
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -440,19 +437,19 @@ export default async function AnalyticsPage({
                       >
                         <div>
                           <p className="font-medium">
-                            {item.client.nome} {item.client.cognome}
+                            {item.client.firstName} {item.client.lastName}
                           </p>
                           {item.lastSession && (
                             <p className="text-sm text-muted-foreground">
-                              Ultima sessione:{" "}
-                              {format(item.lastSession, "dd MMM yyyy", { locale: it })}
+                              Last session:{" "}
+                              {format(item.lastSession, "dd MMM yyyy")}
                             </p>
                           )}
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="text-2xl font-bold">{item.count}</p>
-                            <p className="text-xs text-muted-foreground">sessioni</p>
+                            <p className="text-xs text-muted-foreground">sessions</p>
                           </div>
                           {item.averageRating && (
                             <div className="flex items-center gap-1">
@@ -466,50 +463,50 @@ export default async function AnalyticsPage({
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">
-                    Nessuna sessione nel periodo selezionato
+                    No sessions in the selected period
                   </p>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Feedback Negativi */}
+          {/* Negative Feedback */}
           <TabsContent value="negative" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Feedback da Migliorare</CardTitle>
+                <CardTitle>Feedback to Improve</CardTitle>
                 <CardDescription>
                   {totalNegativeFeedbackCount > 0
-                    ? `${totalNegativeFeedbackCount} sessioni con rating ≤ 2 stelle`
-                    : "Nessun feedback negativo"}
+                    ? `${totalNegativeFeedbackCount} sessions with rating ≤ 2 stars`
+                    : "No negative feedback"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {paginatedNegativeFeedback.length > 0 ? (
                   <>
                     <div className="space-y-3">
-                      {paginatedNegativeFeedback.map((session) => (
+                      {paginatedNegativeFeedback.map((workoutSession) => (
                         <div
-                          key={session.id}
+                          key={workoutSession.id}
                           className="p-4 border border-destructive/50 rounded-lg bg-destructive/5"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <p className="font-medium">
-                                {session.client.nome} {session.client.cognome}
+                                {workoutSession.client.firstName} {workoutSession.client.lastName}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {session.workout.nome} •{" "}
-                                {format(session.data, "dd MMM yyyy", { locale: it })}
+                                {workoutSession.workout.name} •{" "}
+                                {format(workoutSession.date, "dd MMM yyyy")}
                               </p>
                             </div>
                             <Badge variant="destructive">
-                              ⭐ {session.rating}/5
+                              {workoutSession.rating}/5
                             </Badge>
                           </div>
-                          {session.feedback && (
+                          {workoutSession.feedback && (
                             <p className="text-sm mt-2 p-3 bg-background rounded">
-                              {session.feedback}
+                              {workoutSession.feedback}
                             </p>
                           )}
                         </div>
@@ -525,10 +522,10 @@ export default async function AnalyticsPage({
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-green-600 font-medium">
-                      Ottimo lavoro! Nessun feedback negativo
+                      Great job! No negative feedback
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Tutti i clienti sono soddisfatti
+                      All clients are satisfied
                     </p>
                   </div>
                 )}

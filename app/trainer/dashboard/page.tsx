@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-better";
 import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,56 +6,56 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Users, UserCheck, Bell, TrendingUp } from "lucide-react";
 
-// Dati mock per la demo
+// Mock data for demo
 const mockClients = [
   {
     id: "1",
-    nome: "Mario Rossi",
-    ultimoAllenamento: "2 ore fa",
-    status: "active", // active, warning, inactive
-    schedaScadenza: 14,
+    name: "Mario Rossi",
+    lastWorkout: "2 hours ago",
+    status: "active" as const,
+    cardExpiry: 14,
   },
   {
     id: "2",
-    nome: "Laura Bianchi",
-    ultimoAllenamento: "1 giorno fa",
-    status: "active",
-    schedaScadenza: 21,
+    name: "Laura Bianchi",
+    lastWorkout: "1 day ago",
+    status: "active" as const,
+    cardExpiry: 21,
   },
   {
     id: "3",
-    nome: "Giuseppe Verdi",
-    ultimoAllenamento: "5 giorni fa",
-    status: "warning",
-    schedaScadenza: 7,
+    name: "Giuseppe Verdi",
+    lastWorkout: "5 days ago",
+    status: "warning" as const,
+    cardExpiry: 7,
   },
   {
     id: "4",
-    nome: "Anna Neri",
-    ultimoAllenamento: "10 giorni fa",
-    status: "inactive",
-    schedaScadenza: 3,
+    name: "Anna Neri",
+    lastWorkout: "10 days ago",
+    status: "inactive" as const,
+    cardExpiry: 3,
   },
 ];
 
 const statusConfig = {
   active: {
     badge: "bg-green-500",
-    label: "Attivo",
+    label: "Active",
   },
   warning: {
     badge: "bg-yellow-500",
-    label: "Attenzione",
+    label: "Warning",
   },
   inactive: {
     badge: "bg-red-500",
-    label: "Inattivo",
+    label: "Inactive",
   },
 };
 
 export default async function TrainerDashboard() {
-  const session = await getServerSession(authOptions);
-  const userName = `${session?.user.nome} ${session?.user.cognome}`;
+  const session = await getSession();
+  const userName = `${session?.user.firstName} ${session?.user.lastName}`;
 
   const activeClients = mockClients.filter((c) => c.status === "active").length;
   const warningClients = mockClients.filter((c) => c.status === "warning").length;
@@ -64,43 +63,43 @@ export default async function TrainerDashboard() {
 
   return (
     <div className="flex flex-col">
-      <Header userName={userName} title="Dashboard Trainer" />
+      <Header userName={userName} title="Trainer Dashboard" />
 
       <div className="flex-1 space-y-6 p-6">
         {/* Welcome Section */}
         <div>
           <h2 className="text-3xl font-bold tracking-tight">
-            Benvenuto, {session?.user.nome}!
+            Welcome, {session?.user.firstName}!
           </h2>
           <p className="text-muted-foreground">
-            Panoramica dei tuoi clienti
+            Overview of your clients
           </p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
-            title="Clienti totali"
+            title="Total Clients"
             value={mockClients.length}
-            description="Nel tuo portfolio"
+            description="In your portfolio"
             icon={Users}
           />
           <StatsCard
-            title="Clienti attivi"
+            title="Active Clients"
             value={activeClients}
-            description="Allenati di recente"
+            description="Trained recently"
             icon={UserCheck}
           />
           <StatsCard
-            title="Richiedono attenzione"
+            title="Need Attention"
             value={warningClients + inactiveClients}
-            description="Inattivi o schede in scadenza"
+            description="Inactive or expiring cards"
             icon={Bell}
           />
           <StatsCard
-            title="Sessioni questa settimana"
+            title="Sessions This Week"
             value="48"
-            description="+12% dalla scorsa settimana"
+            description="+12% from last week"
             icon={TrendingUp}
             trend={{ value: 12, isPositive: true }}
           />
@@ -109,16 +108,16 @@ export default async function TrainerDashboard() {
         {/* Client List */}
         <Card>
           <CardHeader>
-            <CardTitle>I tuoi Clienti</CardTitle>
+            <CardTitle>Your Clients</CardTitle>
             <CardDescription>
-              Stato attuale dei clienti e scadenze schede
+              Current status and card expiration dates
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {mockClients.map((client) => {
                 const config = statusConfig[client.status];
-                const initials = client.nome
+                const initials = client.name
                   .split(" ")
                   .map((n) => n[0])
                   .join("");
@@ -138,25 +137,25 @@ export default async function TrainerDashboard() {
                         />
                       </div>
                       <div>
-                        <p className="font-medium">{client.nome}</p>
+                        <p className="font-medium">{client.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Ultimo allenamento: {client.ultimoAllenamento}
+                          Last workout: {client.lastWorkout}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          Scadenza scheda
+                          Card Expiry
                         </p>
                         <p
                           className={`text-sm ${
-                            client.schedaScadenza <= 7
+                            client.cardExpiry <= 7
                               ? "text-red-600 font-semibold"
                               : "text-muted-foreground"
                           }`}
                         >
-                          {client.schedaScadenza} giorni
+                          {client.cardExpiry} days
                         </p>
                       </div>
                       <Badge
@@ -177,7 +176,7 @@ export default async function TrainerDashboard() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Notifiche Recenti</CardTitle>
+              <CardTitle>Recent Notifications</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -185,27 +184,27 @@ export default async function TrainerDashboard() {
                   <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
                   <div>
                     <p className="text-sm font-medium">
-                      Mario Rossi ha completato un allenamento
+                      Mario Rossi completed a workout
                     </p>
-                    <p className="text-xs text-muted-foreground">2 ore fa</p>
+                    <p className="text-xs text-muted-foreground">2 hours ago</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-yellow-500" />
                   <div>
                     <p className="text-sm font-medium">
-                      Scheda di Anna Neri in scadenza tra 3 giorni
+                      Anna Neri&apos;s card expires in 3 days
                     </p>
-                    <p className="text-xs text-muted-foreground">5 ore fa</p>
+                    <p className="text-xs text-muted-foreground">5 hours ago</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-red-500" />
                   <div>
                     <p className="text-sm font-medium">
-                      Giuseppe Verdi non si allena da 5 giorni
+                      Giuseppe Verdi hasn&apos;t trained in 5 days
                     </p>
-                    <p className="text-xs text-muted-foreground">1 giorno fa</p>
+                    <p className="text-xs text-muted-foreground">1 day ago</p>
                   </div>
                 </div>
               </div>
@@ -214,18 +213,18 @@ export default async function TrainerDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Schede in Scadenza</CardTitle>
-              <CardDescription>Prossimi 7 giorni</CardDescription>
+              <CardTitle>Expiring Cards</CardTitle>
+              <CardDescription>Next 7 days</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {mockClients
-                  .filter((c) => c.schedaScadenza <= 7)
+                  .filter((c) => c.cardExpiry <= 7)
                   .map((client) => (
                     <div key={client.id} className="flex items-center justify-between">
-                      <p className="text-sm font-medium">{client.nome}</p>
+                      <p className="text-sm font-medium">{client.name}</p>
                       <Badge variant="destructive">
-                        {client.schedaScadenza} giorni
+                        {client.cardExpiry} days
                       </Badge>
                     </div>
                   ))}

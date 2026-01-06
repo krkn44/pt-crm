@@ -11,12 +11,12 @@ import { Loader2 } from "lucide-react";
 
 export function ClientAddForm() {
   const [formData, setFormData] = useState({
-    nome: "",
-    cognome: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
-    telefono: "",
-    obiettivi: "",
+    phone: "",
+    goals: "",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -39,15 +39,15 @@ export function ClientAddForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Errore nel creare il cliente");
+        throw new Error(data.error || "Error creating client");
       }
 
-      // Vai alla pagina del nuovo cliente
+      // Navigate to the new client's page
       router.push(`/trainer/clients/${data.id}`);
       router.refresh();
     } catch (error: any) {
-      console.error("Errore:", error);
-      setError(error.message || "Errore nel creare il cliente");
+      console.error("Error:", error);
+      setError(error.message || "Error creating client");
       setIsSaving(false);
     }
   };
@@ -56,9 +56,9 @@ export function ClientAddForm() {
     <form onSubmit={handleSubmit}>
       <Card>
         <CardHeader>
-          <CardTitle>Nuovo Cliente</CardTitle>
+          <CardTitle>New Client</CardTitle>
           <CardDescription>
-            Inserisci i dati del nuovo cliente per registrarlo nel sistema
+            Enter the new client&apos;s information to register them in the system
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -70,27 +70,27 @@ export function ClientAddForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
+              <Label htmlFor="firstName">First Name *</Label>
               <Input
-                id="nome"
-                value={formData.nome}
+                id="firstName"
+                value={formData.firstName}
                 onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
+                  setFormData({ ...formData, firstName: e.target.value })
                 }
                 required
-                placeholder="Mario"
+                placeholder="John"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cognome">Cognome *</Label>
+              <Label htmlFor="lastName">Last Name *</Label>
               <Input
-                id="cognome"
-                value={formData.cognome}
+                id="lastName"
+                value={formData.lastName}
                 onChange={(e) =>
-                  setFormData({ ...formData, cognome: e.target.value })
+                  setFormData({ ...formData, lastName: e.target.value })
                 }
                 required
-                placeholder="Rossi"
+                placeholder="Doe"
               />
             </div>
           </div>
@@ -105,10 +105,10 @@ export function ClientAddForm() {
                 setFormData({ ...formData, email: e.target.value })
               }
               required
-              placeholder="mario.rossi@email.com"
+              placeholder="john.doe@email.com"
             />
             <p className="text-xs text-muted-foreground">
-              Verrà utilizzata per accedere all&apos;app
+              Will be used to access the app
             </p>
           </div>
 
@@ -122,36 +122,36 @@ export function ClientAddForm() {
                 setFormData({ ...formData, password: e.target.value })
               }
               required
-              placeholder="Minimo 6 caratteri"
+              placeholder="Minimum 6 characters"
               minLength={6}
             />
             <p className="text-xs text-muted-foreground">
-              Password per l&apos;accesso del cliente (minimo 6 caratteri)
+              Client login password (minimum 6 characters)
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="telefono">Telefono</Label>
+            <Label htmlFor="phone">Phone</Label>
             <Input
-              id="telefono"
+              id="phone"
               type="tel"
-              value={formData.telefono}
+              value={formData.phone}
               onChange={(e) =>
-                setFormData({ ...formData, telefono: e.target.value })
+                setFormData({ ...formData, phone: e.target.value })
               }
-              placeholder="+39 123 456 7890"
+              placeholder="+1 123 456 7890"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="obiettivi">Obiettivi</Label>
+            <Label htmlFor="goals">Goals</Label>
             <Textarea
-              id="obiettivi"
-              value={formData.obiettivi}
+              id="goals"
+              value={formData.goals}
               onChange={(e) =>
-                setFormData({ ...formData, obiettivi: e.target.value })
+                setFormData({ ...formData, goals: e.target.value })
               }
-              placeholder="Descrivi gli obiettivi del cliente..."
+              placeholder="Describe the client's goals..."
               className="min-h-[120px]"
             />
           </div>
@@ -161,10 +161,10 @@ export function ClientAddForm() {
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creazione...
+                  Creating...
                 </>
               ) : (
-                "Crea Cliente"
+                "Create Client"
               )}
             </Button>
             <Button
@@ -173,7 +173,7 @@ export function ClientAddForm() {
               onClick={() => router.back()}
               disabled={isSaving}
             >
-              Annulla
+              Cancel
             </Button>
           </div>
         </CardContent>
